@@ -50,6 +50,7 @@ temp/
 tmp/
 *.tmp
 *.mmd
+*.langgraph_api
 
 # OS
 .DS_Store
