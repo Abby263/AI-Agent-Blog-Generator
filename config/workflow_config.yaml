@@ -1,0 +1,420 @@
+# Multi-Agent Blog Generation Workflow Configuration
+
+# LLM Configuration
+llm:
+  # Primary LLM for complex tasks
+  primary:
+    provider: "openai"  # or "anthropic"
+    model: "gpt-4"
+    temperature: 0.7
+    max_tokens: 4000
+    timeout: 120
+  
+  # Secondary LLM for lighter tasks
+  secondary:
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    temperature: 0.3
+    max_tokens: 2000
+    timeout: 60
+
+# Agent Configuration
+agents:
+  supervisor:
+    llm: "primary"
+    temperature: 0.3  # More deterministic for planning
+    max_tokens: 2000
+    timeout: 60
+    prompt_template: "prompts/supervisor_planning.txt"
+  
+  research:
+    llm: "primary"
+    temperature: 0.5  # Balanced
+    max_tokens: 4000
+    timeout: 180  # Longer for web searches
+    tools:
+      - web_search
+      - blog_scraper
+    web_search:
+      provider: "tavily"  # or "serpapi"
+      max_results: 10
+      search_depth: "advanced"
+    sources:
+      engineering_blogs:
+        - "https://netflixtechblog.com"
+        - "https://eng.uber.com"
+        - "https://ai.googleblog.com"
+        - "https://engineering.fb.com"
+        - "https://engineering.linkedin.com"
+        - "https://medium.com/airbnb-engineering"
+        - "https://doordash.engineering"
+      papers:
+        - "arxiv.org"
+        - "papers.nips.cc"
+  
+  outline:
+    llm: "primary"
+    temperature: 0.4
+    max_tokens: 3000
+    timeout: 90
+    template_file: "templates/blog_structure.yaml"
+  
+  content_writer:
+    llm: "primary"
+    temperature: 0.7  # More creative
+    max_tokens: 4000
+    timeout: 180
+    parallel_sections: 6  # Write 6 sections in parallel
+    style_guide: "docs/style_guide.md"
+  
+  code_generator:
+    llm: "primary"
+    temperature: 0.2  # Precise for code
+    max_tokens: 2000
+    timeout: 90
+    language: "python"
+    style:
+      max_line_length: 88
+      use_type_hints: true
+      docstring_style: "google"
+  
+  diagram:
+    llm: "primary"
+    temperature: 0.3
+    max_tokens: 2000
+    timeout: 90
+    mermaid:
+      cli_path: "/usr/local/bin/mmdc"
+      width: 1200
+      height: 800
+      background: "transparent"
+      theme: "default"
+      scale: 2
+    output_dir: "images"
+  
+  reference:
+    llm: "secondary"  # Lighter task
+    temperature: 0.2
+    max_tokens: 2000
+    timeout: 60
+    citation_style: "numeric"  # [1], [2], [3]
+  
+  quality_assurance:
+    llm: "primary"
+    temperature: 0.2  # Precise evaluation
+    max_tokens: 3000
+    timeout: 120
+    checks:
+      - technical_accuracy
+      - completeness
+      - consistency
+      - code_quality
+      - reference_quality
+    thresholds:
+      pass: 9.0
+      minor_revisions: 7.0
+      major_revisions: 5.0
+      reject: 0.0
+  
+  integration:
+    llm: "secondary"
+    temperature: 0.1  # Very precise formatting
+    max_tokens: 2000
+    timeout: 60
+
+# Workflow Configuration
+workflow:
+  # Checkpoints for human review
+  checkpoints:
+    enabled: true
+    locations:
+      - after_research
+      - after_outline
+      - after_quality_check
+    timeout: 3600  # 1 hour for human to respond
+  
+  # Retry policy
+  retry:
+    max_attempts: 3
+    backoff_strategy: "exponential"  # linear, exponential, fixed
+    initial_delay: 5  # seconds
+    max_delay: 60
+    jitter: true
+  
+  # Timeout configuration
+  timeout:
+    total: 3600  # 1 hour max for entire workflow
+    per_agent: 300  # 5 minutes max per agent call
+  
+  # Parallelization
+  parallel:
+    enabled: true
+    max_workers: 10
+    sections: 6  # Max parallel section writing
+    code_blocks: 5  # Max parallel code generation
+    diagrams: 5  # Max parallel diagram creation
+
+# Template Configuration
+template:
+  structure_file: "templates/blog_structure.yaml"
+  word_counts:
+    introduction: [500, 800]
+    problem_statement: [800, 1200]
+    feature_engineering: [2000, 3000]
+    models: [1500, 2000]
+    system_design: [1500, 2000]
+    evaluation: [1000, 1500]
+    case_study: [800, 1000]
+    best_practices: [300, 400]
+    common_mistakes: [300, 400]
+    conclusion: [200, 300]
+    total: [8000, 10000]
+  
+  required_sections:
+    - introduction
+    - problem_statement
+    - feature_engineering
+    - models
+    - system_design
+    - evaluation
+    - case_study
+    - best_practices
+    - common_mistakes
+    - conclusion
+    - test_your_learning
+    - references
+  
+  diagram_requirements:
+    min: 8
+    max: 15
+    types:
+      - architecture
+      - flowchart
+      - data_flow
+      - feature_pipeline
+  
+  code_requirements:
+    min: 15
+    max: 25
+    language: "python"
+    include_imports: true
+    include_comments: true
+    include_docstrings: true
+
+# Quality Standards
+quality:
+  minimum_score: 7.0
+  critical_threshold: 0  # No critical issues allowed
+  
+  technical_accuracy:
+    weight: 0.30
+    checks:
+      - correct_concepts
+      - realistic_metrics
+      - valid_architecture
+      - functional_code
+  
+  completeness:
+    weight: 0.25
+    checks:
+      - all_sections_present
+      - all_diagrams_included
+      - all_code_provided
+      - all_references_cited
+  
+  consistency:
+    weight: 0.20
+    checks:
+      - template_structure
+      - writing_style
+      - terminology
+      - citation_format
+  
+  code_quality:
+    weight: 0.15
+    checks:
+      - syntax_valid
+      - best_practices
+      - adequate_comments
+      - type_hints
+      - error_handling
+  
+  reference_quality:
+    weight: 0.10
+    checks:
+      - claims_cited
+      - urls_valid
+      - sources_reputable
+      - format_correct
+
+# Output Configuration
+output:
+  markdown:
+    output_dir: "output"
+    filename_pattern: "{topic_slug}.md"
+    encoding: "utf-8"
+  
+  images:
+    output_dir: "images"
+    filename_pattern: "diagram_{index}_{hash}.png"
+    format: "png"
+  
+  metadata:
+    include: true
+    format: "yaml"  # yaml or json
+    fields:
+      - title
+      - date
+      - author
+      - tags
+      - related_posts
+
+# Monitoring and Logging
+monitoring:
+  langsmith:
+    enabled: true
+    project_name: "ml-blog-generation"
+    tracing: true
+    evaluation: true
+  
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: "logs/workflow.log"
+    rotate: true
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+  
+  metrics:
+    track:
+      - latency_per_agent
+      - token_usage
+      - cost_per_blog
+      - quality_scores
+      - error_rates
+      - success_rates
+
+# Cost Management
+cost:
+  budget_per_blog: 10.00  # USD
+  token_pricing:
+    gpt4:
+      input: 0.03  # per 1K tokens
+      output: 0.06
+    gpt35:
+      input: 0.0015
+      output: 0.002
+  
+  alerts:
+    threshold: 8.00  # Alert if approaching budget
+    recipients:
+      - "admin@example.com"
+
+# Caching Configuration
+cache:
+  enabled: true
+  backend: "redis"  # redis, memory, disk
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    ttl: 3600  # 1 hour
+  
+  cache_keys:
+    research_results: true
+    diagram_images: true
+    code_blocks: false  # Don't cache code (may need regeneration)
+
+# Development/Testing Configuration
+development:
+  debug_mode: false
+  dry_run: false  # Simulate without LLM calls
+  skip_web_search: false  # Use cached research
+  skip_diagram_generation: false  # Use placeholders
+  
+  test_data:
+    topics:
+      - "Real-Time Fraud Detection"
+      - "Video Recommendation Systems"
+      - "ETA Prediction"
+    output_dir: "test_output"
+
+# Production Configuration
+production:
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst: 10
+  
+  error_handling:
+    notify_on_error: true
+    email: "admin@example.com"
+    slack_webhook: ""
+  
+  backup:
+    enabled: true
+    interval: 3600  # 1 hour
+    destination: "s3://blog-backups"
+  
+  deployment:
+    platform: "docker"  # docker, kubernetes, local
+    resources:
+      cpu: "2"
+      memory: "4Gi"
+      gpu: false
+
+# Feature Flags
+features:
+  parallel_execution: true
+  human_in_the_loop: true
+  automated_quality_checks: true
+  diagram_generation: true
+  code_validation: true
+  web_search: true
+  reference_validation: true
+
+# Integration Configuration
+integrations:
+  cms:
+    enabled: false
+    platform: "wordpress"  # wordpress, medium, ghost
+    api_endpoint: ""
+    api_key: ""
+  
+  git:
+    enabled: true
+    auto_commit: false
+    branch: "main"
+    commit_message_template: "Add blog post: {title}"
+  
+  slack:
+    enabled: false
+    webhook_url: ""
+    notify_on:
+      - workflow_start
+      - workflow_complete
+      - quality_check_fail
+      - human_review_needed
+
+# Evaluation Configuration
+evaluation:
+  enabled: true
+  datasets:
+    - "evaluation/test_cases.json"
+  
+  metrics:
+    - technical_accuracy
+    - completeness
+    - consistency
+    - readability
+  
+  baseline:
+    manually_written_blogs:
+      - "12-bot-detection.md"
+      - "13-eta-prediction.md"
+  
+  comparison:
+    automated_vs_manual: true
+    report_format: "markdown"
+    output_file: "evaluation/results.md"
+

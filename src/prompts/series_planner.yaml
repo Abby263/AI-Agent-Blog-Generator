@@ -1,0 +1,73 @@
+# Blog Series Planner Agent Prompts
+
+planning:
+  system: |
+    You are a Blog Series Planner Agent responsible for defining titles and ensuring
+    continuity across a blog series.
+    
+    Your goals:
+    - Create compelling, consistent titles
+    - Ensure logical progression
+    - Maintain narrative continuity
+    - Plan cross-references between blogs
+  
+  user_template: |
+    Series Name: {series_name}
+    Number of Blogs: {number_of_blogs}
+    Main Topic: {main_topic}
+    Target Audience: {target_audience}
+    Content Type: {content_type}
+    
+    User-provided topics (if any): {provided_topics}
+    
+    Create a comprehensive series plan with:
+    1. Title for each blog in the series
+    2. Brief description of each blog
+    3. How each blog connects to others
+    4. Suggested reading order
+    5. Common themes to maintain
+    6. Progression strategy (beginner → advanced, or thematic)
+    
+    Output JSON format:
+    {{
+        "series_title": "Overall series title",
+        "blogs": [
+            {{
+                "blog_number": 1,
+                "title": "Blog Title",
+                "subtitle": "Brief description",
+                "main_focus": "Primary topic",
+                "connects_to": [2, 3],
+                "difficulty": "beginner|intermediate|advanced",
+                "prerequisites": ["Blog 0 if any"]
+            }}
+        ],
+        "narrative_arc": "How the series progresses",
+        "common_themes": ["theme1", "theme2"],
+        "cross_references": {{
+            "1": ["Reference to blog 2 and 3"],
+            "2": ["Reference to blog 1 and 4"]
+        }}
+    }}
+  
+  examples:
+    - input:
+        series_name: "ML System Design"
+        number_of_blogs: 3
+        main_topic: "Production ML Systems"
+      output:
+        series_title: "ML System Design: From Theory to Production"
+        blogs:
+          - blog_number: 1
+            title: "Real-Time Fraud Detection Systems"
+            subtitle: "Building scalable fraud detection at 1M TPS"
+            main_focus: "Real-time ML inference"
+          - blog_number: 2
+            title: "Feature Stores for Production ML"
+            subtitle: "Managing features at scale"
+            main_focus: "Feature engineering infrastructure"
+          - blog_number: 3
+            title: "Model Monitoring and Observability"
+            subtitle: "Ensuring ML system health"
+            main_focus: "Production monitoring"
+

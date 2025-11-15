@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "ai-agent-blog-series-generator"
+version = "1.0.0"
+description = "Multi-agent workflow for generating ML system design blog posts using LangGraph"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langgraph = "^0.2.0"
+langgraph-cli = "^0.1.0"
+langchain = "^0.3.0"
+langchain-openai = "^0.2.0"
+langsmith = "^0.1.0"
+tavily-python = "^0.5.0"
+pydantic = "^2.0.0"
+pyyaml = "^6.0"
+python-dotenv = "^1.0.0"
+requests = "^2.31.0"
+typing-extensions = "^4.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+black = "^23.7.0"
+pylint = "^2.17.0"
+mypy = "^1.5.0"
+pytest-asyncio = "^0.21.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
