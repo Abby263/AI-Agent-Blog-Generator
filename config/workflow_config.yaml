@@ -85,13 +85,13 @@ agents:
     max_tokens: 2000
     timeout: 90
     mermaid:
-      cli_path: "/usr/local/bin/mmdc"
+      cli_path: "mmdc"  # Use PATH to find mmdc
       width: 1200
       height: 800
       background: "transparent"
       theme: "default"
       scale: 2
-    output_dir: "images"
+    output_dir: "output/images"  # Save diagrams relative to output directory
   
   reference:
     llm: "secondary"  # Lighter task
@@ -261,7 +261,7 @@ output:
     encoding: "utf-8"
   
   images:
-    output_dir: "images"
+    output_dir: "output/images"  # Save diagrams relative to output directory
     filename_pattern: "diagram_{index}_{hash}.png"
     format: "png"
   

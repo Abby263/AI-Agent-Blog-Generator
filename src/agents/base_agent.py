@@ -150,4 +150,76 @@ class BaseAgent(ABC):
             updates["messages"] = state.messages + updates["messages"]
         
         return updates
+    
+    def _extract_json_from_response(self, response: str) -> Dict[str, Any]:
+        """
+        Robustly extract JSON from LLM response.
+        
+        Tries multiple strategies:
+        1. JSON in markdown code blocks (```json ... ```)
+        2. Raw JSON between curly braces
+        3. JSON after common prefixes
+        
+        Args:
+            response: LLM response text
+            
+        Returns:
+            Parsed JSON dictionary
+            
+        Raises:
+            ValueError: If no valid JSON found
+        """
+        import json
+        import re
+        
+        # Strategy 1: Try to extract from markdown code block
+        json_block_pattern = r'```(?:json)?\s*(\{[\s\S]*?\})\s*```'
+        match = re.search(json_block_pattern, response)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+        
+        # Strategy 2: Find JSON between curly braces
+        start = response.find('{')
+        end = response.rfind('}') + 1
+        
+        if start >= 0 and end > start:
+            json_str = response[start:end]
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"JSON decode error: {e}")
+                # Try to fix common issues
+                # Remove trailing commas
+                json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    pass
+        
+        # Strategy 3: Look for JSON after common prefixes
+        prefixes = [
+            "Here's the JSON:",
+            "Here is the JSON:",
+            "JSON output:",
+            "Output:",
+            "Result:",
+        ]
+        for prefix in prefixes:
+            if prefix in response:
+                json_part = response.split(prefix, 1)[1].strip()
+                start = json_part.find('{')
+                end = json_part.rfind('}') + 1
+                if start >= 0 and end > start:
+                    try:
+                        return json.loads(json_part[start:end])
+                    except json.JSONDecodeError:
+                        pass
+        
+        # If all strategies fail, raise error with helpful message
+        self.logger.error(f"Could not extract JSON from response (length: {len(response)})")
+        self.logger.debug(f"Response preview: {response[:500]}")
+        raise ValueError("No valid JSON found in response")
 

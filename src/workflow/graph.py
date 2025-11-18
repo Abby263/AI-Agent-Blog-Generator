@@ -344,12 +344,43 @@ def _plan_blog_series(
     target_length: int,
     content_type: str
 ) -> tuple[BlogSeriesPlan, List[str]]:
-    """Use the series planner agent to define the series structure."""
+    """
+    Use the series planner agent to define the series structure.
+    
+    First does research on the series topic to understand context,
+    then generates appropriate blog titles based on findings.
+    """
+    from src.agents.research_agent import ResearchAgent
+    
+    logger.info(f"Researching series topic: {series_name}")
+    
+    # Step 1: Research the series topic to understand what it's about
+    research_agent = ResearchAgent()
+    research_state = BlogState(
+        topic=series_name,
+        requirements=requirements,
+        metadata={"author": author},
+        content_config=ContentConfiguration(
+            target_length=target_length,
+            content_type=content_type
+        )
+    )
+    
+    research_summary = None
+    try:
+        research_updates = research_agent.invoke(research_state)
+        research_summary = research_updates.get("research_summary")
+        logger.info(f"✓ Completed research for series planning")
+    except Exception as exc:
+        logger.warning(f"Research failed for series planning: {exc}")
+    
+    # Step 2: Use research context to generate appropriate blog titles
     planner = BlogSeriesPlannerAgent()
     try:
         planning_state = BlogState(
             topic=series_name,
             requirements=requirements,
+            research_summary=research_summary,  # Pass research context
             metadata={
                 "author": author,
                 "series_config": {
@@ -360,7 +391,10 @@ def _plan_blog_series(
                     "content_type": content_type
                 }
             },
-            content_config=ContentConfiguration(target_length=target_length)
+            content_config=ContentConfiguration(
+                target_length=target_length,
+                content_type=content_type
+            )
         )
         updates = planner.invoke(planning_state)
         plan_data = updates.get("metadata", {}).get("series_plan")
@@ -369,7 +403,7 @@ def _plan_blog_series(
             topics = _extract_topics_from_plan(plan, series_name, number_of_blogs)
             plan = _ensure_plan_has_topics(plan, topics)
             logger.info(
-                f"Series planner generated plan '{plan.series_title}'"
+                f"Series planner generated plan '{plan.series_title}' based on research"
             )
             return plan, topics
     except Exception as exc:

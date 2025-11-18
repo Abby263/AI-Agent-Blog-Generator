@@ -20,8 +20,15 @@ planning:
     
     User-provided topics (if any): {provided_topics}
     
+    IMPORTANT: Match the style, tone, and terminology to the content type and topic.
+    - For sports/entertainment: Use engaging, fan-focused language
+    - For news: Use journalistic, fact-based language
+    - For technical content: Use professional, technical language
+    - For reviews: Use evaluative, comparative language
+    - DO NOT force technical/tech jargon on non-technical topics
+    
     Create a comprehensive series plan with:
-    1. Title for each blog in the series
+    1. Title for each blog in the series (appropriate to the topic domain)
     2. Brief description of each blog
     3. How each blog connects to others
     4. Suggested reading order
@@ -49,12 +56,18 @@ planning:
             "2": ["Reference to blog 1 and 4"]
         }}
     }}
+    
+    IMPORTANT OUTPUT FORMAT:
+    - Return ONLY the JSON object, no additional text or explanation
+    - Ensure valid JSON syntax (no trailing commas, proper quotes)
+    - You may wrap it in ```json code blocks if you prefer
   
   examples:
     - input:
         series_name: "ML System Design"
         number_of_blogs: 3
         main_topic: "Production ML Systems"
+        content_type: "blog"
       output:
         series_title: "ML System Design: From Theory to Production"
         blogs:
@@ -70,4 +83,25 @@ planning:
             title: "Model Monitoring and Observability"
             subtitle: "Ensuring ML system health"
             main_focus: "Production monitoring"
+    
+    - input:
+        series_name: "World Cup 2023 Analysis"
+        number_of_blogs: 3
+        main_topic: "Cricket World Cup 2023"
+        content_type: "blog"
+      output:
+        series_title: "World Cup 2023: The Complete Story"
+        blogs:
+          - blog_number: 1
+            title: "India's Dominant Run: Match-by-Match Breakdown"
+            subtitle: "How Team India conquered the league stage"
+            main_focus: "Match analysis and key performances"
+          - blog_number: 2
+            title: "Australia's Comeback: From Underdogs to Champions"
+            subtitle: "The tactical shifts that won the trophy"
+            main_focus: "Strategic analysis"
+          - blog_number: 3
+            title: "Defining Moments: The Plays That Changed the Tournament"
+            subtitle: "Crucial catches, innings, and decisions"
+            main_focus: "Memorable moments and turning points"
 

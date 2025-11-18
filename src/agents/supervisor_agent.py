@@ -39,7 +39,7 @@ class SupervisorAgent(BaseAgent):
         
         # Parse response as JSON
         try:
-            plan_data = self._extract_json(response)
+            plan_data = self._extract_json_from_response(response)
             workflow_plan = WorkflowPlan(**plan_data)
             
             self.logger.info(f"Created workflow plan with {len(workflow_plan.critical_sections)} critical sections")
@@ -61,46 +61,69 @@ class SupervisorAgent(BaseAgent):
     
     def _build_planning_prompt(self, state: BlogState) -> str:
         """Build the planning prompt."""
-        prompt_template = """You are the Supervisor Agent coordinating a multi-agent workflow to create high-quality ML system design blog posts.
+        content_type = state.content_config.content_type if state.content_config else "blog"
+        
+        # Detect content domain
+        topic_lower = state.topic.lower()
+        is_technical = any(keyword in topic_lower for keyword in [
+            'system', 'ml', 'ai', 'machine learning', 'design', 'architecture',
+            'engineering', 'data', 'algorithm', 'model', 'api', 'infrastructure'
+        ])
+        
+        if is_technical:
+            focus_guidance = """Focus on:
+1. What engineering blogs to search (Netflix, Uber, Google, etc.)
+2. What technical metrics are critical (latency, throughput, scale)
+3. What technical sections are most important
+4. What diagrams and code examples are needed"""
+        else:
+            focus_guidance = """Focus on:
+1. What sources to research (news sites, expert analysis, official sources)
+2. What information is critical (statistics, key facts, expert opinions)
+3. What sections are most important for this topic
+4. What visual elements (diagrams, charts) would help"""
+        
+        prompt_template = """You are the Supervisor Agent coordinating a multi-agent workflow to create high-quality {content_type} content.
 
 Topic: {topic}
+Content Type: {content_type}
 User Requirements: {requirements}
 
-Analyze this topic and create a detailed workflow plan. Focus on:
-1. What engineering blogs to search (Netflix, Uber, Google, etc.)
-2. What metrics are critical (latency, throughput, scale)
-3. What sections are most important for this topic
-4. What diagrams and code examples are needed
+Analyze this topic and create a detailed workflow plan.
+
+{focus_guidance}
 
 Output your plan in this JSON format:
 {{
     "research_priorities": ["priority1", "priority2", "priority3"],
     "focus_areas": ["area1", "area2", "area3"],
     "critical_sections": ["section1", "section2"],
-    "diagram_types": ["architecture", "flowchart", "data_flow"],
-    "code_examples_needed": ["example1", "example2"],
+    "diagram_types": ["diagram type 1", "diagram type 2"],
+    "code_examples_needed": ["example1 (if applicable)", "example2"],
     "estimated_duration_minutes": 45,
     "checkpoints": ["after_research", "after_outline", "after_qa"]
 }}
 
-Be specific about what research is needed and which sections are critical for this topic."""
+IMPORTANT:
+- Adapt your plan to the content type and topic domain
+- For non-technical topics, code_examples_needed can be an empty list
+- Use appropriate diagram types for the content (not always architecture/flowchart)
+- Be specific about what research is needed for THIS specific topic
+
+OUTPUT FORMAT:
+- Return ONLY the JSON object, no additional text or explanation
+- Ensure valid JSON syntax (no trailing commas, proper quotes)
+- You may wrap it in ```json code blocks if you prefer"""
+        
+        default_requirements = f"Standard {content_type} content" if not is_technical else "Standard ML system design blog"
         
         return prompt_template.format(
+            content_type=content_type,
             topic=state.topic,
-            requirements=state.requirements or "Standard ML system design blog"
+            requirements=state.requirements or default_requirements,
+            focus_guidance=focus_guidance
         )
     
-    def _extract_json(self, response: str) -> Dict[str, Any]:
-        """Extract JSON from LLM response."""
-        # Try to find JSON in the response
-        start = response.find('{')
-        end = response.rfind('}') + 1
-        
-        if start >= 0 and end > start:
-            json_str = response[start:end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("No JSON found in response")
     
     def _create_default_plan(self, state: BlogState) -> Dict[str, Any]:
         """Create a default workflow plan."""

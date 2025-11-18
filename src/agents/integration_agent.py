@@ -41,7 +41,7 @@ class IntegrationAgent(BaseAgent):
         self.logger.info(f"Blog post saved to: {output_path}")
         
         # Create metadata
-        metadata = self._create_metadata(state, output_path)
+        metadata = self._create_metadata(state, final_content, output_path)
         
         return {
             "final_content": final_content,
@@ -62,11 +62,6 @@ class IntegrationAgent(BaseAgent):
         """Assemble all components into complete blog post."""
         parts = []
         used_diagrams = set()
-        title_counts: Dict[str, int] = {}
-        display_titles = [
-            self._get_display_title(section.title, title_counts)
-            for section in state.sections
-        ]
 
         # Add title
         heading_label = self._get_content_label(state)
@@ -79,14 +74,14 @@ class IntegrationAgent(BaseAgent):
         
         # Add table of contents
         parts.append("## Table of Contents\n")
-        for i, display_title in enumerate(display_titles, 1):
-            slug = self._slugify(display_title)
-            parts.append(f"{i}. [{display_title}](#{slug})")
+        for i, section in enumerate(state.sections, 1):
+            slug = self._slugify(section.title)
+            parts.append(f"{i}. [{section.title}](#{slug})")
         parts.append("")
 
         # Add sections
-        for section, display_title in zip(state.sections, display_titles):
-            parts.append(f"## {display_title}\n")
+        for section in state.sections:
+            parts.append(f"## {section.title}\n")
             
             # Replace code placeholders
             content = section.content
@@ -150,23 +145,37 @@ class IntegrationAgent(BaseAgent):
             rendered = render_mermaid_blocks_in_file(Path(output_path))
             if rendered:
                 self.logger.info(
-                    f"Rendered {rendered} Mermaid diagrams for {output_path}"
+                    f"✓ Rendered {rendered} Mermaid diagram(s) to PNG for {output_path}"
                 )
+            else:
+                self.logger.info(
+                    f"No Mermaid diagrams found to render in {output_path}"
+                )
+        except RuntimeError as exc:
+            # Mermaid CLI not available
+            self.logger.warning(
+                "Mermaid CLI not available. Install with: npm install -g @mermaid-js/mermaid-cli"
+            )
+            self.logger.warning(
+                "Diagrams will remain as Mermaid code blocks in %s",
+                output_path
+            )
         except Exception as exc:
             self.logger.warning(
-                "Mermaid rendering skipped for %s: %s",
+                "Mermaid rendering failed for %s: %s",
                 output_path,
                 exc
             )
     
-    def _create_metadata(self, state: BlogState, output_path: str) -> Dict[str, Any]:
+    def _create_metadata(self, state: BlogState, final_content: str, output_path: str) -> Dict[str, Any]:
         """Create metadata for the blog post."""
+        total_words = self._calculate_word_count(final_content)
         metadata = {
-            "title": f"ML System Design: {state.topic}",
+            "title": f"{self._get_content_label(state)}: {state.topic}",
             "date": datetime.now().isoformat(),
             "author": state.metadata.get("author", "AI Agent"),
             "topic": state.topic,
-            "word_count": sum(s.word_count for s in state.sections),
+            "word_count": total_words,
             "sections": len(state.sections),
             "code_examples": len(state.code_blocks),
             "diagrams": len(state.diagrams),
@@ -236,3 +245,43 @@ class IntegrationAgent(BaseAgent):
             "review": "Review",
         }
         return mapping.get(content_type, content_type.capitalize())
+
+    def _calculate_word_count(self, content: str) -> int:
+        """
+        Calculate word count excluding markdown syntax for more accurate count.
+        
+        This removes:
+        - Code blocks
+        - Image/link markdown
+        - Headers (#)
+        - Lists (-, *)
+        - HTML comments
+        """
+        import re
+        
+        # Remove code blocks (```...```)
+        text = re.sub(r'```[\s\S]*?```', '', content)
+        
+        # Remove inline code (`...`)
+        text = re.sub(r'`[^`]*`', '', text)
+        
+        # Remove image/link markdown
+        text = re.sub(r'!\[([^\]]*)\]\([^\)]*\)', r'\1', text)  # Images
+        text = re.sub(r'\[([^\]]*)\]\([^\)]*\)', r'\1', text)  # Links
+        
+        # Remove HTML comments
+        text = re.sub(r'<!--[\s\S]*?-->', '', text)
+        
+        # Remove markdown headers (#)
+        text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+        
+        # Remove list markers (-, *, 1.)
+        text = re.sub(r'^[\s]*[-*]\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^[\s]*\d+\.\s+', '', text, flags=re.MULTILINE)
+        
+        # Remove extra whitespace
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Count words
+        words = text.strip().split()
+        return len(words)

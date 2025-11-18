@@ -75,9 +75,10 @@ class OutlineAgent(BaseAgent):
         
         # Parse outline
         try:
-            outline_data = self._extract_json(response)
+            outline_data = self._extract_json_from_response(response)
             outline = self._parse_outline(outline_data)
-            outline = self._deduplicate_titles(outline)
+            # Skip deduplication - _parse_outline already handles this
+            outline = self._align_to_structure(outline, state)
             outline = self._normalize_word_counts(outline, state)
             
             self.logger.info(
@@ -107,15 +108,40 @@ class OutlineAgent(BaseAgent):
             research_summary = f"Real-world examples found: {', '.join(examples)}"
         
         content_type = state.content_config.content_type if state.content_config else "blog"
-        structure = self._get_structure_guidance(content_type)
+        
+        # Use series-specific requirements if available, otherwise use default structure
+        series_info = state.metadata.get("series") if state.metadata else None
+        requirements = ""
+        if series_info:
+            series_requirements = series_info.get("requirements", "")
+            if series_requirements:
+                requirements = f"\nSeries Requirements: {series_requirements}\n"
+        
+        # Get structure guidance (this can be overridden by series requirements)
+        structure_guidance = self._get_structure_guidance(content_type)
+        
         prompt = f"""You are an Outline Agent creating a detailed {content_type} outline.
 
 Topic: {state.topic}
 Audience: {state.metadata.get('tone', 'professional') if state.metadata else 'general readers'}
 {research_summary}
+{requirements}
 
-Use the following structure guidance (adapt if needed to fit the requested content type):
-{structure}
+STRUCTURE GUIDELINES:
+{structure_guidance}
+
+IMPORTANT: The above structure is a GUIDELINE, not a rigid template. You should:
+- Adapt the structure to fit the specific topic and requirements
+- Add, remove, or modify sections as needed to best serve the content
+- Ensure the structure logically flows and tells a complete story
+- Consider what sections are truly necessary for THIS specific topic
+
+CRITICAL REQUIREMENTS:
+- Each section MUST have a UNIQUE title
+- DO NOT create duplicate section titles
+- DO NOT repeat the same section multiple times
+- Ensure each section serves a distinct purpose in the content
+- Tailor the outline to the specific topic, not a generic template
 
 For each section, provide:
 - Objectives (what to cover)
@@ -125,20 +151,32 @@ For each section, provide:
 - Code examples needed (IDs) if relevant
 - Real-world references when helpful
 
-Output JSON with the schema previously described."""
+OUTPUT FORMAT:
+Return a JSON object with this structure:
+{{
+    "sections": [
+        {{
+            "title": "Section Title",
+            "objectives": ["objective 1", "objective 2"],
+            "key_points": ["point 1", "point 2", "point 3"],
+            "word_count": 600,
+            "diagrams": ["diagram_id_1"],
+            "code_examples": ["code_id_1"],
+            "real_world_references": ["reference 1"]
+        }}
+    ],
+    "total_words": 5000,
+    "total_diagrams": 5,
+    "total_code_examples": 10
+}}
+
+IMPORTANT:
+- Return ONLY the JSON object, no additional text or explanation
+- Ensure valid JSON syntax (no trailing commas, proper quotes)
+- You may wrap it in ```json code blocks if you prefer"""
         
         return prompt
     
-    def _extract_json(self, response: str) -> Dict[str, Any]:
-        """Extract JSON from LLM response."""
-        start = response.find('{')
-        end = response.rfind('}') + 1
-        
-        if start >= 0 and end > start:
-            json_str = response[start:end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("No JSON found in response")
     
     def _parse_outline(self, outline_data: Dict[str, Any]) -> BlogOutline:
         """Parse outline data into BlogOutline object."""
@@ -247,4 +285,30 @@ Output JSON with the schema previously described."""
             section.word_count = new_words
             adjusted_total += new_words
         outline.total_words = adjusted_total
+        return outline
+
+    def _align_to_structure(self, outline: BlogOutline, state: BlogState) -> BlogOutline:
+        """
+        Lightly validate outline structure without forcing rigid adherence.
+        
+        This method now serves as a light validation pass rather than forcing
+        sections to match a predefined template. It simply ensures the outline
+        has a reasonable structure.
+        """
+        # Skip alignment if we have series-specific requirements
+        series_info = state.metadata.get("series") if state.metadata else None
+        if series_info and series_info.get("requirements"):
+            # Series has custom requirements - don't force alignment to default structure
+            return outline
+        
+        # If outline is reasonable length, accept it as-is
+        if 5 <= len(outline.sections) <= 15:
+            return outline
+        
+        # Only intervene if outline seems problematic (too few or too many sections)
+        if len(outline.sections) < 5:
+            self.logger.warning("Outline has very few sections (%d), may need more content", len(outline.sections))
+        elif len(outline.sections) > 15:
+            self.logger.warning("Outline has many sections (%d), consider consolidating", len(outline.sections))
+        
         return outline

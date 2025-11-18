@@ -69,23 +69,51 @@ class ResearchAgent(BaseAgent):
         }
     
     def _generate_search_queries(self, state: BlogState) -> List[str]:
-        """Generate search queries based on topic and workflow plan."""
+        """Generate search queries based on topic, content type, and workflow plan."""
         topic = state.topic
-        queries = [
-            f"{topic} system design architecture",
-            f"{topic} production metrics latency scale",
-            f"{topic} ML engineering blog",
-        ]
+        content_type = state.content_config.content_type if state.content_config else "blog"
         
-        # Add queries from workflow plan if available
-        if state.workflow_plan:
+        # Generate context-appropriate queries based on content type
+        queries = []
+        
+        # Always start with the base topic
+        queries.append(topic)
+        
+        # Add queries from workflow plan if available (highest priority)
+        if state.workflow_plan and state.workflow_plan.research_priorities:
             for priority in state.workflow_plan.research_priorities[:3]:
                 queries.append(priority)
         
-        # Add company-specific queries
-        companies = ["Netflix", "Uber", "Google"]
-        for company in companies:
-            queries.append(f"{company} {topic} engineering blog")
+        # Add content-type specific queries if we don't have workflow priorities
+        else:
+            # Detect if this is technical/ML content or general content
+            topic_lower = topic.lower()
+            is_technical = any(keyword in topic_lower for keyword in [
+                'system', 'ml', 'ai', 'machine learning', 'design', 'architecture',
+                'engineering', 'data', 'algorithm', 'model', 'api', 'infrastructure'
+            ])
+            
+            if is_technical:
+                # Technical content queries
+                queries.extend([
+                    f"{topic} implementation architecture",
+                    f"{topic} real-world examples case studies",
+                    f"{topic} best practices",
+                ])
+            else:
+                # General content queries (news, sports, reviews, etc.)
+                queries.extend([
+                    f"{topic} analysis insights",
+                    f"{topic} statistics data",
+                    f"{topic} expert opinion",
+                ])
+        
+        # Series-specific context
+        series_info = state.metadata.get("series") if state.metadata else None
+        if series_info and series_info.get("requirements"):
+            requirements = series_info.get("requirements", "")
+            if requirements:
+                queries.append(f"{topic} {requirements[:50]}")  # First 50 chars
         
         max_queries = max(1, int(self.max_queries))
         queries = queries[:max_queries]
@@ -106,7 +134,7 @@ class ResearchAgent(BaseAgent):
         
         # Parse response
         try:
-            data = self._extract_json(response)
+            data = self._extract_json_from_response(response)
             
             # Convert to ResearchSummary
             research_summary = ResearchSummary(
@@ -139,26 +167,52 @@ class ResearchAgent(BaseAgent):
     ) -> str:
         """Build prompt for research synthesis."""
         content_text = self._build_search_context(search_results)
+        content_type = state.content_config.content_type if state.content_config else "blog"
         
-        prompt = f"""You are a Research Agent analyzing information about {state.topic}.
+        # Detect if this is technical content
+        topic_lower = state.topic.lower()
+        is_technical = any(keyword in topic_lower for keyword in [
+            'system', 'ml', 'ai', 'machine learning', 'design', 'architecture',
+            'engineering', 'data', 'algorithm', 'model', 'api', 'infrastructure'
+        ])
+        
+        # Adjust schema based on content type
+        if is_technical:
+            example_schema = """
+        {{
+            "company": "Company Name or Organization",
+            "system": "System/Product Name",
+            "scale": "Scale metrics (e.g., '200M+ users', '1B+ requests/day')",
+            "latency": "Performance metrics (e.g., '<100ms p95')",
+            "architecture": "Brief architecture description",
+            "key_technologies": ["tech1", "tech2"],
+            "source": "URL",
+            "key_insights": ["insight1", "insight2"]
+        }}"""
+        else:
+            example_schema = """
+        {{
+            "company": "Organization, Team, or Person",
+            "system": "Event, Product, or Subject being described",
+            "scale": "Relevant metrics or scope (e.g., 'World Cup 2023', '50K+ attendees')",
+            "latency": "Time-based metrics if relevant (e.g., 'Match duration: 8 hours')",
+            "architecture": "Structure or approach description",
+            "key_technologies": ["relevant tools", "methods", "or approaches used"],
+            "source": "URL",
+            "key_insights": ["key finding 1", "key finding 2"]
+        }}"""
+        
+        prompt = f"""You are a Research Agent analyzing information about: {state.topic}
 
-Based on the following search results, extract and structure the information:
+Content Type: {content_type}
+
+Based on the following search results, extract and structure the relevant information:
 
 {content_text}
 
 Output a JSON object with this structure:
 {{
-    "real_world_examples": [
-        {{
-            "company": "Company Name",
-            "system": "System Name",
-            "scale": "Scale metrics (e.g., '200M+ users')",
-            "latency": "Latency metrics (e.g., '<100ms p95')",
-            "architecture": "Brief architecture description",
-            "key_technologies": ["tech1", "tech2"],
-            "source": "URL",
-            "key_insights": ["insight1", "insight2"]
-        }}
+    "real_world_examples": [{example_schema}
     ],
     "statistics": [
         {{"metric": "metric name", "value": "value", "source": "source"}}
@@ -167,14 +221,24 @@ Output a JSON object with this structure:
     "papers": [],
     "architecture_patterns": [
         {{
-            "pattern": "Pattern Name",
-            "used_by": ["Company1", "Company2"],
+            "pattern": "Pattern/Approach Name",
+            "used_by": ["Entity1", "Entity2"],
             "benefits": ["benefit1", "benefit2"]
         }}
     ]
 }}
 
-Extract specific, quantitative information. Include at least 2-3 real-world examples."""
+IMPORTANT:
+- Adapt the fields to the content type (technical vs general)
+- Extract specific, quantitative information where available
+- Include at least 2-3 relevant examples from the search results
+- If technical terms don't apply, interpret them flexibly (e.g., "system" = subject, "scale" = scope)
+- Leave fields empty or use N/A if information is not available
+
+OUTPUT FORMAT:
+- Return ONLY the JSON object, no additional text or explanation
+- Ensure valid JSON syntax (no trailing commas, proper quotes, etc.)
+- You may wrap it in ```json code blocks if you prefer"""
         
         return prompt
 
@@ -211,16 +275,6 @@ Extract specific, quantitative information. Include at least 2-3 real-world exam
         
         return "\n---\n".join(blocks)
     
-    def _extract_json(self, response: str) -> Dict[str, Any]:
-        """Extract JSON from LLM response."""
-        start = response.find('{')
-        end = response.rfind('}') + 1
-        
-        if start >= 0 and end > start:
-            json_str = response[start:end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("No JSON found in response")
     
     def _create_fallback_research(
         self,

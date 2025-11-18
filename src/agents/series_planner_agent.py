@@ -51,7 +51,7 @@ class BlogSeriesPlannerAgent(BaseAgent):
         
         # Parse series plan
         try:
-            plan_data = self._extract_json(response)
+            plan_data = self._extract_json_from_response(response)
             
             self.logger.info(
                 f"Created series plan with {len(plan_data.get('blogs', []))} blogs"
@@ -82,27 +82,37 @@ class BlogSeriesPlannerAgent(BaseAgent):
         series_config: Dict[str, Any]
     ) -> str:
         """Build the series planning prompt using YAML template."""
-        return self.prompt_loader.get_prompt(
+        # Build research context if available
+        research_context = ""
+        if state.research_summary:
+            research_context = "\n\nRESEARCH FINDINGS:\n"
+            if state.research_summary.real_world_examples:
+                research_context += "Key Examples Found:\n"
+                for ex in state.research_summary.real_world_examples[:3]:
+                    research_context += f"- {ex.company}: {ex.system} ({ex.scale})\n"
+            if state.research_summary.statistics:
+                research_context += "\nRelevant Statistics:\n"
+                for stat in state.research_summary.statistics[:3]:
+                    research_context += f"- {stat.metric}: {stat.value}\n"
+            research_context += "\nUse this research to create contextually appropriate, accurate blog titles."
+        
+        prompt = self.prompt_loader.get_prompt(
             agent_name="series_planner",
             prompt_type="planning",
             series_name=series_config.get("series_name", "Blog Series"),
             number_of_blogs=series_config.get("number_of_blogs", 3),
             main_topic=series_config.get("main_topic", state.topic),
-            target_audience=series_config.get("target_audience", "Technical professionals"),
+            target_audience=series_config.get("target_audience", "General readers"),
             content_type=series_config.get("content_type", "blog"),
             provided_topics=", ".join(series_config.get("topics", []))
         )
-    
-    def _extract_json(self, response: str) -> Dict[str, Any]:
-        """Extract JSON from LLM response."""
-        start = response.find('{')
-        end = response.rfind('}') + 1
         
-        if start >= 0 and end > start:
-            json_str = response[start:end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("No JSON found in response")
+        # Append research context to the prompt
+        if research_context:
+            prompt += research_context
+        
+        return prompt
+    
     
     def _create_default_series_plan(
         self,

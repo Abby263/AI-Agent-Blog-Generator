@@ -1,6 +1,6 @@
-# AI Agent Blog Series Generator
+# AI Agent Content Series Generator
 
-A sophisticated **multi-agent workflow** using **LangGraph** and **LangSmith** to automatically generate high-quality ML system design blog posts.
+A sophisticated **multi-agent workflow** using **LangGraph** and **LangSmith** to automatically generate long-form content (blogs, news, tutorials, reviews) with consistent structure, diagrams, and citations.
 
 ## Features
 
@@ -16,12 +16,11 @@ A sophisticated **multi-agent workflow** using **LangGraph** and **LangSmith** t
 - 🔧 Integration: Final assembly and formatting
 
 🚀 **Key Capabilities**:
-- Generates 8,000-10,000 word technical blogs
-- Creates 10-15 architectural diagrams
-- Produces 15-25 code examples
-- Includes 20-30 references with sources
-- Follows consistent ML system design template
-- Real-world examples from Netflix, Uber, Google, etc.
+- Generates multi-format content (editorial/news/tutorial/review) with configurable target lengths
+- Automatically plans multi-chapter series with continuity
+- Creates diagrams (Mermaid → PNG) plus optional code snippets
+- Captures sources, metrics, and references for each section
+- Live progress tracking and download-ready Markdown via REST API + Next.js UI
 
 ⚙️ **Technical Stack**:
 - **LangGraph**: Workflow orchestration
@@ -39,6 +38,7 @@ A sophisticated **multi-agent workflow** using **LangGraph** and **LangSmith** t
   - Python 3.9-3.10 will work for CLI usage only (without Studio UI)
   - Recommended: Python 3.12+ for best compatibility
 - **Node.js** (for Mermaid CLI diagram generation)
+- **Mermaid CLI** (for converting diagram code blocks to PNG images)
 - **uv** (recommended) or Poetry (for dependency management)
 
 ### Setup
@@ -61,7 +61,16 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 pip install uv  # or: brew install uv
 ```
 
-3. **Install dependencies**:
+3. **Install Mermaid CLI** (for diagram generation):
+```bash
+# Install globally via npm
+npm install -g @mermaid-js/mermaid-cli
+
+# Verify installation
+mmdc --version
+```
+
+4. **Install Python dependencies**:
 ```bash
 # Create virtual environment and install dependencies
 uv sync
@@ -83,35 +92,28 @@ uv pip install -U "langgraph-cli[inmem]"  # For LangSmith Studio UI
 git clone <repository-url>
 cd ai-agent-blog-series-generator
 
-# 2. Install uv if needed
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# 2. Install Mermaid CLI (for diagrams)
+npm install -g @mermaid-js/mermaid-cli
 
-# 3. Install dependencies and activate virtual environment
+# 3. Install backend dependencies
 uv sync
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .  # Install project in editable mode
-uv pip install -U "langgraph-cli[inmem]"
+uv pip install -e .
 
-# 4. Create .env file and add your API keys
-touch .env
-# Edit .env with your OPENAI_API_KEY, TAVILY_API_KEY, etc.
+# 4. Create .env and add keys
+cp .env.example .env  # or touch .env && edit
 
-# 5. Validate setup (ensure virtual environment is active)
-python main.py --dry-run
+# 5. Run backend API
+uvicorn main:app --reload
 
-# 6. Start LangSmith Studio UI (ensure virtual environment is active)
-langgraph dev --no-browser
-# Or run a blog directly: python main.py --topic "Your Topic"
+# 6. Install frontend deps (first time only)
+cd frontend && npm install
+
+# 7. Start Next.js UI
+npm run dev
 ```
 
 ⚠️ **Important**: Always ensure the virtual environment is activated before running any commands. If packages are not found, check that you see `(ai-agent-blog-series-generator-py3.12)` in your terminal prompt.
-
-4. **Install Mermaid CLI** (for diagram generation):
-```bash
-npm install -g @mermaid-js/mermaid-cli
-# or
-brew install mermaid-cli
-```
 
 5. **Configure environment variables**:
 
@@ -149,149 +151,21 @@ LANGSMITH_TRACING_V2=true
 - **Tavily**: [Tavily](https://tavily.com/)
 - **LangSmith**: [LangSmith](https://smith.langchain.com/) (optional)
 
-6. **Validate setup**:
+6. **Run the backend and UI**:
 
 ```bash
-# Ensure virtual environment is activated
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Backend API (FastAPI)
+uvicorn main:app --reload
+# Health check
+curl http://localhost:8000/api/health
 
-# Validate environment and configuration
-python main.py --dry-run
-
-# Or using Make
-make validate
-```
-
-You should see output like:
-```
-✓ Required environment variables found
-✓ LangSmith API key for tracing (optional) configured
-✓ Configuration loaded from config/workflow_config.yaml
-✓ Dry run: Environment and configuration validated
-✓ Ready to generate blogs!
-```
-
-**If using LangSmith Studio UI**, also verify the server can start:
-```bash
-# Ensure virtual environment is activated
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Quick test (will exit after 3 seconds)
-langgraph dev --help
-
-# If you see help output, the installation is correct
+# Frontend (Next.js)
+cd frontend
+npm install          # first run
+npm run dev          # http://localhost:3000
 ```
 
 ## Usage
-
-### Option 1: LangSmith Studio UI (Recommended for Interactive Use)
-
-**Requirements:** Python 3.11+ (Python 3.12+ recommended)
-
-```bash
-# Start LangSmith Studio UI (Make handles activation automatically)
-make studio
-# Or manually: langgraph dev --no-browser
-
-# The UI will be available at: http://localhost:8123
-```
-
-**What you can do in LangSmith Studio:**
-- ✨ **Visual Configuration**: Configure all parameters through an intuitive UI
-- 📊 **Real-time Monitoring**: Watch agents execute in real-time
-- 🔍 **Debug Mode**: Step through the workflow and inspect state at each step
-- 📈 **Performance Metrics**: View latency, token usage, and costs
-- 🎯 **Interrupt & Resume**: Pause workflow for human review and resume later
-- 📝 **Full Tracing**: Complete visibility into all agent interactions
-
-**Configurable Parameters in UI:**
-- **topic**: Blog topic (e.g., "Real-Time Fraud Detection")
-- **requirements**: System requirements (e.g., "Scale: 1M TPS, Latency: <50ms")
-- **author**: Author name (default: "AI Agent")
-- **target_length**: Word count (500-50000, default: 8000)
-- **include_code**: Include code examples (true/false)
-- **include_diagrams**: Include diagrams (true/false)
-- **tone**: Writing tone (professional/casual/academic)
-- **content_type**: Content type (blog/news/tutorial/review)
-
-**Access the UI:**
-1. Open browser and navigate to `http://localhost:8123`
-2. Select the "agent" graph
-3. Configure parameters in the input panel
-4. Click "Start" to run the workflow
-5. Monitor execution in real-time with full tracing
-
----
-
-### Option 2: Quick Start with Make Commands
-
-The easiest way to run the application is using the included Makefile:
-
-```bash
-# Validate your setup (recommended first step)
-make validate
-
-# Generate a single blog
-make start TOPIC="Real-Time Fraud Detection"
-
-# Generate a blog with custom requirements
-make start TOPIC="Video Recommendation Systems" ARGS="--requirements 'Scale: 1B users, Latency: <100ms' --author 'Your Name'"
-
-# Generate a blog series
-make series SERIES="ML System Design" TOPICS="Bot Detection,ETA Prediction,Search Ranking"
-
-# Run example blog generation
-make example
-
-# View recent logs
-make logs
-```
-
----
-
-### Option 3: Direct Python Commands
-
-**Note:** Ensure virtual environment is activated (see Installation section).
-
-#### Single Blog Generation
-
-Ensure virtual environment is activated:
-```bash
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-Basic blog generation:
-```bash
-python main.py --topic "Real-Time Fraud Detection"
-
-# With custom requirements and author
-python main.py --topic "Video Recommendation Systems" \
-    --requirements "Scale: 1B users, Latency: <100ms" \
-    --author "Your Name"
-```
-
-#### Blog Series Generation
-
-```bash
-python main.py --series "ML System Design" \
-    --series-count 5 \
-    --target-length 5000 \
-    --author "Your Name"
-```
-
-When `--series-count` is provided, the Series Planner Agent proposes the
-individual blog titles and focus areas automatically. If you still prefer to
-define each topic yourself, pass `--topics` and skip `--series-count`.
-
-Each blog is saved inside a dedicated folder named after the series. For the
-example above, finalized markdown lives under `output/ml-system-design/*.md`.
-The workflow never merges the posts, so you can publish or edit every blog
-independently. The `--target-length` value applies to every blog in the series.
-
-When using LangSmith Studio, the **Number of Blogs** input mirrors the
-`--series-count` flag. Setting it above 1 automatically triggers the Series
-Planner Agent, which splits the main topic into sub-blogs and runs generation
-for each entry sequentially.
 
 #### REST API Mode
 
