@@ -87,32 +87,46 @@ class ContentWriterAgent(BaseAgent):
         if state.research_summary:
             examples = state.research_summary.real_world_examples[:3]
             if examples:
-                research_info = "\n\nReal-world examples:\n"
+                research_info = "\n\nRelevant examples:\n"
                 for ex in examples:
                     research_info += f"- {ex.company}: {ex.system} - {ex.scale}\n"
-        
-        prompt = f"""You are a Content Writer Agent specializing in ML system design blog posts.
 
-Write the "{section_outline.title}" section for a blog post about "{state.topic}".
+        content_config = state.content_config
+        content_type = content_config.content_type if content_config else "blog"
+        tone = state.metadata.get("tone", "professional") if state.metadata else "professional"
+        code_pref = "Include runnable code snippets where helpful." if content_config.include_code else "Skip code snippets."
+        diagram_pref = (
+            "Reference diagram placeholders using the format ![Description](images/diagram_X.png)."
+            if content_config.include_diagrams
+            else "Do not reference diagrams."
+        )
+        target_words = section_outline.word_count or content_config.target_length // max(1, len(state.outline.sections)) if state.outline else 600
+
+        prompt = f"""You are a Content Writer Agent crafting a {content_type} section.
+
+Topic: "{state.topic}"
+Section: "{section_outline.title}"
+Tone: {tone}
+Desired length: ~{target_words} words (stay within +/- 15%).
 
 Section Outline:
 - Objectives: {', '.join(section_outline.objectives)}
 - Key Points: {', '.join(section_outline.key_points)}
-- Target Word Count: {section_outline.word_count}
+
+Continuity:
+- Maintain narrative continuity with previous sections.
+- Avoid repeating headings verbatim; introduce transitions that reference earlier context.
 
 {research_info}
 
 Style Guidelines:
-1. Technical but accessible - explain complex concepts clearly
-2. Real-world focus - cite specific companies (Netflix, Uber, Google)
-3. Conversational tone - use "we", "you", rhetorical questions
-4. Evidence-based - include statistics and metrics
-5. Include code examples where appropriate
-6. Add diagram placeholders: ![Description](images/diagram_X.png)
+1. Adapt your voice to the content type ({content_type}). For news, prioritize facts; for tutorials, use stepwise guidance; for reviews, compare pros/cons.
+2. Use Markdown headings/subheadings. Avoid duplicate top-level headings.
+3. Provide concrete evidence: metrics, dates, sources, or quotes when possible.
+4. {code_pref}
+5. {diagram_pref}
+6. Anchor the writing in real-world scenarios relevant to the section objectives.
 
-Write comprehensive, production-quality content in markdown format.
-
-Focus on practical, real-world implementation details with specific examples and metrics."""
+Write comprehensive, production-quality Markdown for this section."""
         
         return prompt
-

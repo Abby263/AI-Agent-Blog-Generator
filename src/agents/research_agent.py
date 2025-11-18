@@ -14,10 +14,21 @@ from src.tools.web_search import TavilySearchTool
 class ResearchAgent(BaseAgent):
     """Research agent for gathering information."""
     
+    # Hard limits to keep prompts within model context bounds
+    MAX_RESULTS_PER_QUERY = 3
+    MAX_CONTENT_PER_RESULT = 600  # characters
+    MAX_TOTAL_CONTENT = 6000      # characters
+    
     def __init__(self):
         """Initialize research agent."""
         super().__init__("research")
         self.search_tool = TavilySearchTool()
+        agent_config = self.config.get_agent_config("research")
+        max_queries_cfg = agent_config.get("web_search", {}).get("max_queries", 8)
+        try:
+            self.max_queries = max(1, int(max_queries_cfg))
+        except (TypeError, ValueError):
+            self.max_queries = 8
     
     def execute(self, state: BlogState) -> Dict[str, Any]:
         """
@@ -76,8 +87,10 @@ class ResearchAgent(BaseAgent):
         for company in companies:
             queries.append(f"{company} {topic} engineering blog")
         
-        self.logger.info(f"Generated {len(queries)} search queries")
-        return queries[:8]  # Limit to 8 queries
+        max_queries = max(1, int(self.max_queries))
+        queries = queries[:max_queries]
+        self.logger.info(f"Using {len(queries)} search queries (limit={max_queries})")
+        return queries
     
     def _synthesize_research(
         self,
@@ -125,13 +138,7 @@ class ResearchAgent(BaseAgent):
         search_results: Dict[str, List[Dict[str, Any]]]
     ) -> str:
         """Build prompt for research synthesis."""
-        # Aggregate all search result content
-        all_content = []
-        for query, results in search_results.items():
-            for result in results[:3]:  # Top 3 results per query
-                all_content.append(f"Source: {result['title']}\nURL: {result['url']}\n{result['content']}\n")
-        
-        content_text = "\n---\n".join(all_content[:20])  # Limit content
+        content_text = self._build_search_context(search_results)
         
         prompt = f"""You are a Research Agent analyzing information about {state.topic}.
 
@@ -170,6 +177,39 @@ Output a JSON object with this structure:
 Extract specific, quantitative information. Include at least 2-3 real-world examples."""
         
         return prompt
+
+    def _build_search_context(
+        self,
+        search_results: Dict[str, List[Dict[str, Any]]]
+    ) -> str:
+        """Prepare truncated search context to avoid context-length errors."""
+        blocks: List[str] = []
+        total_chars = 0
+        
+        for query, results in search_results.items():
+            for result in results[: self.MAX_RESULTS_PER_QUERY]:
+                content = (result.get("content") or "").strip()
+                if len(content) > self.MAX_CONTENT_PER_RESULT:
+                    content = content[: self.MAX_CONTENT_PER_RESULT] + "..."
+                block = (
+                    f"Query: {query}\n"
+                    f"Source: {result.get('title', 'Unknown')}\n"
+                    f"URL: {result.get('url', '')}\n"
+                    f"Summary: {content}\n"
+                )
+                block_len = len(block)
+                if total_chars + block_len > self.MAX_TOTAL_CONTENT:
+                    break
+                blocks.append(block)
+                total_chars += block_len
+            else:
+                continue
+            break
+        
+        if not blocks:
+            return "No search context available."
+        
+        return "\n---\n".join(blocks)
     
     def _extract_json(self, response: str) -> Dict[str, Any]:
         """Extract JSON from LLM response."""
@@ -203,4 +243,3 @@ Extract specific, quantitative information. Include at least 2-3 real-world exam
             papers=[],
             architecture_patterns=[]
         )
-

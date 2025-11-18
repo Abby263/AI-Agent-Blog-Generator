@@ -19,6 +19,8 @@ pyyaml = "^6.0"
 python-dotenv = "^1.0.0"
 requests = "^2.31.0"
 typing-extensions = "^4.8.0"
+fastapi = "^0.112.0"
+uvicorn = {version = "^0.30.0", extras = ["standard"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -45,4 +47,3 @@ disallow_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-

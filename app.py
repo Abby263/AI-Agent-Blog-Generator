@@ -10,8 +10,9 @@ The graph can be triggered and monitored through LangSmith Studio.
 from typing import Annotated, Any, Dict, List
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
-from src.workflow.graph import create_workflow
+from src.workflow.graph import create_workflow, run_blog_series
 from src.utils.config_loader import get_config
+from src.utils.logger import get_logger
 from dotenv import load_dotenv
 import operator
 
@@ -20,6 +21,7 @@ load_dotenv()
 
 # Load configuration
 config = get_config()
+logger = get_logger()
 
 
 class UserInputState(TypedDict):
@@ -75,6 +77,12 @@ class UserInputState(TypedDict):
         "blog",
         "Type of content: blog, news, tutorial, or review"
     ]
+    
+    number_of_blogs: Annotated[
+        int,
+        1,
+        "Number of blogs to generate in the series (1 = single blog)"
+    ]
 
 
 class WorkflowState(TypedDict):
@@ -91,6 +99,7 @@ class WorkflowState(TypedDict):
     include_diagrams: bool
     tone: str
     content_type: str
+    number_of_blogs: int
     
     # Workflow management
     status: str
@@ -124,6 +133,7 @@ def transform_input_to_workflow_state(user_input: UserInputState) -> WorkflowSta
         include_diagrams=user_input.get("include_diagrams", True),
         tone=user_input.get("tone", "professional"),
         content_type=user_input.get("content_type", "blog"),
+        number_of_blogs=user_input.get("number_of_blogs", 1),
         
         # Initialize workflow state
         status="initialized",
@@ -141,16 +151,78 @@ def transform_input_to_workflow_state(user_input: UserInputState) -> WorkflowSta
         references=[],
         quality_report=None,
         final_content="",
-        metadata={
-            "author": user_input.get("author", "AI Agent"),
-            "target_length": user_input.get("target_length", 8000),
-            "tone": user_input.get("tone", "professional"),
-            "content_type": user_input.get("content_type", "blog"),
-            "include_code": user_input.get("include_code", True),
-            "include_diagrams": user_input.get("include_diagrams", True)
-        },
+        metadata=_build_metadata(user_input),
         retry_count=0
     )
+
+
+def _build_metadata(user_input: UserInputState) -> Dict[str, Any]:
+    """Build metadata block shared across the workflow."""
+    metadata = {
+        "author": user_input.get("author", "AI Agent"),
+        "target_length": user_input.get("target_length", 8000),
+        "tone": user_input.get("tone", "professional"),
+        "content_type": user_input.get("content_type", "blog"),
+        "include_code": user_input.get("include_code", True),
+        "include_diagrams": user_input.get("include_diagrams", True)
+    }
+    number_of_blogs = max(1, user_input.get("number_of_blogs", 1))
+    if number_of_blogs > 1:
+        metadata["series_config"] = {
+            "series_name": user_input.get("topic", ""),
+            "number_of_blogs": number_of_blogs
+        }
+    return metadata
+
+
+def series_router_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize number_of_blogs before routing."""
+    number = max(1, state.get("number_of_blogs", 1))
+    state["number_of_blogs"] = number
+    return state
+
+
+def route_series_entry(state: Dict[str, Any]) -> str:
+    """Route to series runner when more than one blog requested."""
+    if state.get("number_of_blogs", 1) > 1:
+        return "series"
+    return "single"
+
+
+def series_runner_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate an entire blog series when requested from the UI."""
+    series_name = state.get("topic", "Blog Series")
+    number_of_blogs = max(1, state.get("number_of_blogs", 1))
+    logger.info(
+        "LangSmith UI: generating %s blogs for series '%s'",
+        number_of_blogs,
+        series_name
+    )
+    results = run_blog_series(
+        series_name=series_name,
+        number_of_blogs=number_of_blogs,
+        author=state.get("author", "AI Agent"),
+        requirements=state.get("requirements", ""),
+        target_length=state.get("target_length", 8000),
+        include_code=state.get("include_code", True),
+        include_diagrams=state.get("include_diagrams", True)
+    )
+    completed = sum(1 for r in results if r.get("status") == "completed")
+    return {
+        "status": "series_completed",
+        "current_agent": "series_runner",
+        "messages": [
+            f"Generated {completed}/{len(results)} blogs for series '{series_name}'"
+        ],
+        "metadata": {
+            **(state.get("metadata") or {}),
+            "series_results": results,
+            "series_name": series_name,
+            "number_of_blogs": number_of_blogs
+        },
+        "final_content": "",
+        "retry_count": state.get("retry_count", 0)
+    }
 
 
 # Import the workflow nodes and routing
@@ -178,6 +250,8 @@ def create_ui_workflow():
     workflow = StateGraph(WorkflowState, input=UserInputState)
     
     # Add nodes (agents) - using "_agent" suffix to avoid state key conflicts
+    workflow.add_node("series_router_agent", series_router_node)
+    workflow.add_node("series_runner_agent", series_runner_node)
     workflow.add_node("supervisor_agent", supervisor_node)
     workflow.add_node("research_agent", research_node)
     workflow.add_node("outline_agent", outline_node)
@@ -189,7 +263,16 @@ def create_ui_workflow():
     workflow.add_node("integration_agent", integration_node)
     
     # Set entry point
-    workflow.set_entry_point("supervisor_agent")
+    workflow.set_entry_point("series_router_agent")
+
+    workflow.add_conditional_edges(
+        "series_router_agent",
+        route_series_entry,
+        {
+            "single": "supervisor_agent",
+            "series": "series_runner_agent"
+        }
+    )
     
     # Define edges (workflow flow)
     workflow.add_edge("supervisor_agent", "research_agent")
@@ -224,6 +307,7 @@ def create_ui_workflow():
     
     # Final edge: integration → END
     workflow.add_edge("integration_agent", END)
+    workflow.add_edge("series_runner_agent", END)
     
     return workflow.compile()
 
@@ -233,4 +317,3 @@ graph = create_ui_workflow()
 
 # Export for LangSmith Studio
 __all__ = ["graph", "UserInputState"]
-

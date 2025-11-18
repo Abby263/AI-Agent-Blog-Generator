@@ -4,8 +4,10 @@ Routing logic for conditional edges in the workflow.
 
 from typing import Literal, Dict, Any
 from src.utils.logger import get_logger
+from src.utils.config_loader import get_config
 
 logger = get_logger()
+config = get_config()
 
 
 def should_continue_writing(state: Dict[str, Any]) -> Literal["continue_writing", "generate_code"]:
@@ -97,11 +99,24 @@ def route_after_qa(state: Dict[str, Any]) -> str:
     if decision == "pass":
         return "integration"
     elif decision == "fail":
-        # Revise content - go back to content writer
-        logger.warning("Quality check failed, needs revision")
+        # Revise content - go back to content writer, but avoid infinite loops
+        workflow_config = config.get_workflow_config()
+        langgraph_settings = workflow_config.get("langgraph", {})
+        max_revision_loops = langgraph_settings.get("max_revision_loops", 3)
+        state["retry_count"] = state.get("retry_count", 0) + 1
+        if state["retry_count"] >= max_revision_loops:
+            logger.warning(
+                "Reached max revision loops (%s). Routing to human review.",
+                max_revision_loops,
+            )
+            return "human_review"
+        logger.warning(
+            "Quality check failed, needs revision (attempt %s/%s)",
+            state["retry_count"],
+            max_revision_loops,
+        )
         return "content_writer"
     else:
         # Human review needed
         logger.info("Human review needed")
         return "human_review"
-

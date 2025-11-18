@@ -4,7 +4,7 @@ LangGraph workflow definition.
 Creates and configures the multi-agent blog generation workflow.
 """
 
-from typing import Dict, Any, TypedDict, Annotated
+from typing import Dict, Any, TypedDict, Annotated, List, Optional, Callable
 import operator
 from langgraph.graph import StateGraph, END
 from src.workflow.nodes import (
@@ -24,9 +24,17 @@ from src.workflow.routing import (
     route_after_qa
 )
 from src.utils.logger import get_logger
-from src.schemas.state import BlogState
+from src.utils.config_loader import get_config
+from src.schemas.state import (
+    BlogState,
+    ContentConfiguration,
+    SeriesConfiguration,
+    BlogSeriesPlan
+)
+from src.agents.series_planner_agent import BlogSeriesPlannerAgent
 
 logger = get_logger()
+config = get_config()
 
 
 # Define graph state type for LangGraph
@@ -54,6 +62,10 @@ class GraphState(TypedDict):
     quality_report: Any
     final_content: str
     metadata: dict
+    content_config: Any
+    series_config: Any
+    series_plan: Any
+    previous_blogs: list
     retry_count: int
 
 
@@ -129,7 +141,16 @@ def create_workflow() -> StateGraph:
 def run_workflow(
     topic: str,
     requirements: str = "",
-    author: str = "AI Agent"
+    author: str = "AI Agent",
+    target_length: int = 8000,
+    include_code: bool = True,
+    include_diagrams: bool = True,
+    content_type: str = "blog",
+    series_config: Optional[SeriesConfiguration] = None,
+    series_plan: Optional[BlogSeriesPlan] = None,
+    current_blog_number: Optional[int] = None,
+    previous_blogs: Optional[List[Dict[str, Any]]] = None,
+    series_metadata: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Run the blog generation workflow.
@@ -146,6 +167,23 @@ def run_workflow(
     
     # Create workflow
     app = create_workflow()
+    
+    content_config = ContentConfiguration(
+        content_type=content_type,
+        target_length=target_length,
+        include_code=include_code,
+        include_diagrams=include_diagrams
+    )
+    
+    metadata = {
+        "author": author,
+        "content_type": content_type,
+        "target_length": target_length,
+        "include_code": include_code,
+        "include_diagrams": include_diagrams
+    }
+    if series_metadata:
+        metadata["series"] = series_metadata
     
     # Initialize state
     initial_state = {
@@ -164,14 +202,22 @@ def run_workflow(
         "references": [],
         "quality_report": None,
         "final_content": "",
-        "metadata": {"author": author},
-        "retry_count": 0
+        "metadata": metadata,
+        "retry_count": 0,
+        "content_config": content_config,
+        "series_config": series_config,
+        "series_plan": series_plan,
+        "current_blog_number": current_blog_number,
+        "previous_blogs": previous_blogs or []
     }
     
     try:
         # Run workflow
         logger.info("Executing workflow...")
-        result = app.invoke(initial_state)
+        workflow_config = config.get_workflow_config()
+        langgraph_settings = workflow_config.get("langgraph", {})
+        recursion_limit = langgraph_settings.get("recursion_limit", 50)
+        result = app.invoke(initial_state, config={"recursion_limit": recursion_limit})
         
         logger.info("✓ Workflow completed successfully")
         return result
@@ -182,45 +228,231 @@ def run_workflow(
 
 
 def run_blog_series(
-    topics: list,
-    author: str = "AI Agent"
+    series_name: str,
+    number_of_blogs: int,
+    author: str = "AI Agent",
+    requirements: str = "",
+    target_length: int = 8000,
+    include_code: bool = True,
+    include_diagrams: bool = True,
+    content_type: str = "blog",
+    topics: Optional[List[str]] = None,
+    progress_callback: Optional[Callable[[str], None]] = None
 ) -> list:
-    """
-    Run workflow for multiple blog topics.
+    """Generate a full blog series, planning titles when needed."""
+    if number_of_blogs < 1:
+        raise ValueError("number_of_blogs must be at least 1")
     
-    Args:
-        topics: List of blog topics
-        author: Author name
-        
-    Returns:
-        List of results for each blog
-    """
-    logger.info(f"Starting blog series generation for {len(topics)} topics")
+    if topics and len(topics) != number_of_blogs:
+        raise ValueError("Number of provided topics must match number_of_blogs")
+    
+    if topics:
+        series_plan, blog_titles = _build_plan_from_topics(series_name, topics)
+    else:
+        series_plan, blog_titles = _plan_blog_series(
+            series_name=series_name,
+            number_of_blogs=number_of_blogs,
+            author=author,
+            requirements=requirements,
+            target_length=target_length,
+            content_type=content_type
+        )
+    
+    series_config = SeriesConfiguration(
+        series_name=series_name,
+        number_of_blogs=number_of_blogs,
+        topics=blog_titles,
+        main_topic=series_name,
+        content_type=content_type
+    )
+    
+    start_message = (
+        f"Starting blog series generation for '{series_name}' with {number_of_blogs} blogs"
+    )
+    logger.info(start_message)
+    if progress_callback:
+        progress_callback(start_message)
+    for idx, title in enumerate(blog_titles, 1):
+        logger.info(f"  Blog {idx}: {title}")
     
     results = []
-    for i, topic in enumerate(topics, 1):
+    previous_blogs: List[Dict[str, Any]] = []
+    for i, blog_title in enumerate(blog_titles, 1):
         logger.info(f"\n{'='*60}")
-        logger.info(f"Blog {i}/{len(topics)}: {topic}")
+        logger.info(f"Blog {i}/{number_of_blogs}: {blog_title}")
         logger.info(f"{'='*60}\n")
+        if progress_callback:
+            progress_callback(f"Starting blog {i}/{number_of_blogs}: {blog_title}")
         
         try:
-            result = run_workflow(topic=topic, author=author)
+            result = run_workflow(
+                topic=blog_title,
+                requirements=requirements,
+                author=author,
+                target_length=target_length,
+                include_code=include_code,
+                include_diagrams=include_diagrams,
+                content_type=content_type,
+                series_config=series_config,
+                series_plan=series_plan,
+                current_blog_number=i,
+                previous_blogs=previous_blogs,
+                series_metadata={
+                    "series_name": series_name,
+                    "content_type": content_type,
+                    "blog_title": blog_title,
+                    "current_blog_number": i,
+                    "total_blogs": number_of_blogs
+                }
+            )
+            previous_blogs.append({"title": blog_title})
             results.append({
-                "topic": topic,
+                "topic": blog_title,
                 "status": "completed",
                 "result": result
             })
+            if progress_callback:
+                progress_callback(f"Completed blog {i}/{number_of_blogs}: {blog_title}")
         except Exception as e:
-            logger.error(f"Failed to generate blog for '{topic}': {str(e)}")
+            logger.error(f"Failed to generate blog for '{blog_title}': {str(e)}")
             results.append({
-                "topic": topic,
+                "topic": blog_title,
                 "status": "failed",
                 "error": str(e)
             })
+            if progress_callback:
+                progress_callback(
+                    f"Failed blog {i}/{number_of_blogs}: {blog_title} ({str(e)})"
+                )
     
-    # Summary
     completed = sum(1 for r in results if r["status"] == "completed")
-    logger.info(f"\nBlog series completed: {completed}/{len(topics)} successful")
-    
+    summary_message = (
+        f"\nBlog series '{series_name}' completed: {completed}/{number_of_blogs} successful"
+    )
+    logger.info(summary_message)
+    if progress_callback:
+        progress_callback(summary_message)
+
     return results
 
+
+def _plan_blog_series(
+    series_name: str,
+    number_of_blogs: int,
+    author: str,
+    requirements: str,
+    target_length: int,
+    content_type: str
+) -> tuple[BlogSeriesPlan, List[str]]:
+    """Use the series planner agent to define the series structure."""
+    planner = BlogSeriesPlannerAgent()
+    try:
+        planning_state = BlogState(
+            topic=series_name,
+            requirements=requirements,
+            metadata={
+                "author": author,
+                "series_config": {
+                    "series_name": series_name,
+                    "number_of_blogs": number_of_blogs,
+                    "topics": [],
+                    "main_topic": series_name,
+                    "content_type": content_type
+                }
+            },
+            content_config=ContentConfiguration(target_length=target_length)
+        )
+        updates = planner.invoke(planning_state)
+        plan_data = updates.get("metadata", {}).get("series_plan")
+        if plan_data:
+            plan = BlogSeriesPlan.parse_obj(plan_data)
+            topics = _extract_topics_from_plan(plan, series_name, number_of_blogs)
+            plan = _ensure_plan_has_topics(plan, topics)
+            logger.info(
+                f"Series planner generated plan '{plan.series_title}'"
+            )
+            return plan, topics
+    except Exception as exc:
+        logger.warning(f"Series planner failed, falling back to default plan: {exc}")
+    
+    return _build_default_plan(series_name, number_of_blogs)
+
+
+def _build_plan_from_topics(
+    series_name: str,
+    topics: List[str]
+) -> tuple[BlogSeriesPlan, List[str]]:
+    """Create a simple plan using user-provided topics."""
+    number_of_blogs = len(topics)
+    plan_dict = {
+        "series_title": series_name,
+        "blogs": [
+            {
+                "blog_number": idx + 1,
+                "title": title,
+                "subtitle": f"Part {idx+1} of {number_of_blogs}",
+                "main_focus": title,
+                "connects_to": [idx + 2] if idx < number_of_blogs - 1 else [],
+                "difficulty": "intermediate",
+                "prerequisites": [f"Blog {idx}"] if idx > 0 else []
+            }
+            for idx, title in enumerate(topics)
+        ],
+        "narrative_arc": f"{series_name} series covering {number_of_blogs} topics",
+        "common_themes": [series_name],
+        "cross_references": {}
+    }
+    return BlogSeriesPlan(**plan_dict), topics
+
+
+def _build_default_plan(
+    series_name: str,
+    number_of_blogs: int
+) -> tuple[BlogSeriesPlan, List[str]]:
+    """Fallback series plan when the planner cannot generate one."""
+    default_topics = [f"{series_name}: Part {idx+1}" for idx in range(number_of_blogs)]
+    return _build_plan_from_topics(series_name, default_topics)
+
+
+def _extract_topics_from_plan(
+    plan: BlogSeriesPlan,
+    series_name: str,
+    number_of_blogs: int
+) -> List[str]:
+    """Extract blog titles from a plan with sensible fallbacks."""
+    topics: List[str] = []
+    for idx in range(number_of_blogs):
+        title = None
+        if idx < len(plan.blogs):
+            blog_entry = plan.blogs[idx]
+            if isinstance(blog_entry, dict):
+                title = blog_entry.get("title") or blog_entry.get("main_focus")
+        if not title:
+            title = f"{series_name}: Part {idx+1}"
+        topics.append(title)
+    return topics
+
+
+def _ensure_plan_has_topics(
+    plan: BlogSeriesPlan,
+    topics: List[str]
+) -> BlogSeriesPlan:
+    """Ensure the plan contains entries for every topic/title."""
+    plan_dict = plan.dict()
+    blogs = plan_dict.get("blogs", [])
+    for idx, title in enumerate(topics):
+        if idx < len(blogs):
+            blogs[idx]["title"] = title
+            blogs[idx].setdefault("blog_number", idx + 1)
+        else:
+            blogs.append({
+                "blog_number": idx + 1,
+                "title": title,
+                "subtitle": f"Part {idx+1} of {len(topics)}",
+                "main_focus": title,
+                "connects_to": [idx + 2] if idx < len(topics) - 1 else [],
+                "difficulty": "intermediate",
+                "prerequisites": [f"Blog {idx}"] if idx > 0 else []
+            })
+    plan_dict["blogs"] = blogs[: len(topics)]
+    return BlogSeriesPlan(**plan_dict)

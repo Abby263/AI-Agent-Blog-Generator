@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from langchain_openai import ChatOpenAI
 from langsmith import Client
 from src.utils.config_loader import get_config
+from src.utils.logger import get_logger
 import os
 
 
@@ -29,6 +30,7 @@ class LLMFactory:
         self.config = get_config(config_path)
         self._langsmith_client: Optional[Client] = None
         self._initialize_langsmith()
+        self.logger = get_logger()
     
     def _initialize_langsmith(self) -> None:
         """Initialize LangSmith client for tracing."""
@@ -74,14 +76,37 @@ class LLMFactory:
             raise ValueError("OPENAI_API_KEY not found in environment")
         
         # Build LLM parameters
+        model_env_key = "PRIMARY_LLM_MODEL" if llm_type == "primary" else "SECONDARY_LLM_MODEL"
+        model_name = (
+            self.config.get_env(
+                model_env_key,
+                self.config.get_env(
+                    "OPENAI_MODEL_NAME",
+                    llm_config.get("model", "gpt-5-nano")
+                )
+            )
+        )
+
+        temp_override = temperature if temperature is not None else llm_config.get("temperature")
+        max_tokens_override = max_tokens if max_tokens is not None else llm_config.get("max_tokens")
+
+        if self._model_requires_default_temperature(model_name) and temp_override not in (None, 1):
+            self.logger.warning(
+                "Model %s requires default temperature. Overriding %s with 1.",
+                model_name,
+                temp_override,
+            )
+            temp_override = 1
         llm_params = {
-            "model": llm_config.get("model", "gpt-4"),
-            "temperature": temperature or llm_config.get("temperature", 0.7),
-            "max_tokens": max_tokens or llm_config.get("max_tokens", 4000),
+            "model": model_name,
             "openai_api_key": api_key,
             **kwargs
         }
-        
+        if temp_override is not None:
+            llm_params["temperature"] = temp_override
+        if max_tokens_override is not None:
+            llm_params["max_tokens"] = max_tokens_override
+
         return ChatOpenAI(**llm_params)
     
     def create_agent_llm(
@@ -100,20 +125,26 @@ class LLMFactory:
             ChatOpenAI instance configured for the agent
         """
         agent_config = self.config.get_agent_config(agent_name)
-        
+
         # Determine which LLM type to use
         llm_type = agent_config.get("llm", "primary")
-        
+
         # Get agent-specific overrides
         temperature = agent_config.get("temperature")
         max_tokens = agent_config.get("max_tokens")
-        
+
         return self.create_llm(
             llm_type=llm_type,
             temperature=temperature,
             max_tokens=max_tokens,
             **kwargs
         )
+
+    def _model_requires_default_temperature(self, model_name: str) -> bool:
+        """Certain frontier models (e.g., gpt-5-nano) restrict temperature overrides."""
+        restricted_models = ["gpt-5-nano", "gpt-5", "o1", "omni", "gpt-4.1"]
+        model_lower = model_name.lower()
+        return any(tag in model_lower for tag in restricted_models)
     
     @property
     def langsmith_client(self) -> Optional[Client]:
@@ -139,4 +170,3 @@ def get_llm_factory(config_path: str = "config/workflow_config.yaml") -> LLMFact
     if _llm_factory is None:
         _llm_factory = LLMFactory(config_path)
     return _llm_factory
-

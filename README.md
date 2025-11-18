@@ -128,6 +128,12 @@ Add the following to your `.env` file:
 OPENAI_API_KEY=your_openai_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
 
+# Model selection (defaults to GPT-5 Nano)
+PRIMARY_LLM_MODEL=gpt-5-nano
+SECONDARY_LLM_MODEL=gpt-5-nano
+# Optional legacy override
+OPENAI_MODEL_NAME=gpt-5-nano
+
 # Optional: LangSmith for tracing and monitoring
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 
@@ -268,9 +274,108 @@ python main.py --topic "Video Recommendation Systems" \
 
 ```bash
 python main.py --series "ML System Design" \
-    --topics "Bot Detection" "ETA Prediction" "Search Ranking" \
+    --series-count 5 \
+    --target-length 5000 \
     --author "Your Name"
 ```
+
+When `--series-count` is provided, the Series Planner Agent proposes the
+individual blog titles and focus areas automatically. If you still prefer to
+define each topic yourself, pass `--topics` and skip `--series-count`.
+
+Each blog is saved inside a dedicated folder named after the series. For the
+example above, finalized markdown lives under `output/ml-system-design/*.md`.
+The workflow never merges the posts, so you can publish or edit every blog
+independently. The `--target-length` value applies to every blog in the series.
+
+When using LangSmith Studio, the **Number of Blogs** input mirrors the
+`--series-count` flag. Setting it above 1 automatically triggers the Series
+Planner Agent, which splits the main topic into sub-blogs and runs generation
+for each entry sequentially.
+
+#### REST API Mode
+
+You can now run the workflow as a REST API (ideal for frontend integration):
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+Key endpoints:
+- `GET /` or `/api/health` – status checks.
+- `POST /api/blogs` – single blog generation (`topic`, `requirements`, etc.).
+- `POST /api/series` – synchronous multi-blog generation.
+- `POST /api/series/jobs` – enqueue long-running series generation and return `job_id`.
+- `GET /api/series/jobs/{job_id}` – poll progress, retrieve chapter content, and download paths once finished.
+
+### Frontend (Next.js)
+
+A starter frontend lives in `frontend/` (Next.js 15 + Tailwind). It consumes the
+FastAPI endpoints and provides simple forms for single/series generation.
+
+```bash
+# 1. Start FastAPI backend
+uvicorn main:app --reload
+
+# 2. Configure frontend env
+cd frontend
+cp .env.local.example .env.local  # adjust NEXT_PUBLIC_API_BASE_URL if needed
+
+# 3. Run the Next.js dev server
+npm run dev
+```
+
+Visit `http://localhost:3000` to access the UI. Ensure the backend is running so
+API calls succeed.
+
+#### Docker & Azure Container Apps
+
+Docker images are provided for both services:
+
+```bash
+# Build images locally
+docker build -f Dockerfile.backend -t blog-backend .
+docker build -f Dockerfile.frontend -t blog-frontend .
+
+# Orchestration (local)
+docker-compose up --build
+```
+
+Deploying to Azure Container Apps typically follows this flow:
+
+```bash
+# Push images to Azure Container Registry
+az acr build --registry <ACR_NAME> --image blog-backend:latest -f Dockerfile.backend .
+az acr build --registry <ACR_NAME> --image blog-frontend:latest -f Dockerfile.frontend .
+
+# Create Container Apps (backend)
+az containerapp create --name blog-backend --resource-group <RG> --image <ACR_LOGIN>/blog-backend:latest --target-port 8000 --ingress external --env-vars OPENAI_API_KEY=... TAVILY_API_KEY=... PRIMARY_LLM_MODEL=gpt-5-nano
+
+# Frontend (point NEXT_PUBLIC_API_BASE_URL to backend URL)
+az containerapp create --name blog-frontend --resource-group <RG> --image <ACR_LOGIN>/blog-frontend:latest --target-port 3000 --ingress external --env-vars NEXT_PUBLIC_API_BASE_URL=https://<backend-base-url>
+```
+
+Adjust secrets with Azure Key Vault or Container Apps secrets as needed.
+
+
+#### Rendering Mermaid Diagrams
+
+Blog posts embed Mermaid code blocks for every diagram placeholder. During
+integration these blocks are automatically rendered to PNG files using the
+Mermaid CLI (if installed), so the final markdown already references concrete
+images. You can re-render or regenerate diagrams at any time with:
+
+```bash
+python -m src.utils.render_mermaid_program --input output
+```
+
+Key options:
+- Use `--dry-run` to list diagrams without writing files.
+- `--images-dir` overrides the image directory from the diagram agent config.
+
+The script scans each markdown file separately, renders diagrams with Mermaid
+CLI, and replaces only the matching code block with an image reference—no
+combining of multiple blogs or outputs.
 
 #### Validation and Testing
 
@@ -306,8 +411,11 @@ python main.py --topic "Large-Scale Recommendation Systems" \
 |----------|-------------|---------|
 | `--topic` | Blog topic for single blog generation | `--topic "Real-Time Fraud Detection"` |
 | `--requirements` | Optional system requirements/specifications | `--requirements "Scale: 1M TPS, Latency: <50ms"` |
+| `--target-length` | Target word count per blog | `--target-length 5000` |
+| `--content-type` | Content type (blog/news/tutorial/review) | `--content-type news` |
 | `--series` | Blog series name | `--series "ML System Design"` |
 | `--topics` | List of topics for blog series | `--topics "Bot Detection" "ETA Prediction"` |
+| `--series-count` | Number of blogs to generate when using `--series` | `--series-count 5` |
 | `--author` | Author name (default: "AI Agent") | `--author "John Doe"` |
 | `--output` | Custom output directory | `--output custom_output/` |
 | `--config` | Path to configuration file | `--config config/prod_config.yaml` |
@@ -339,6 +447,9 @@ agents:
   content_writer:
     temperature: 0.7
     parallel_sections: 6
+  research:
+    web_search:
+      max_queries: 8  # limit how many search queries are issued per topic
 
 workflow:
   checkpoints:
@@ -348,6 +459,10 @@ workflow:
   retry:
     max_attempts: 3
     backoff_strategy: "exponential"
+  
+  langgraph:
+    recursion_limit: 75  # Raise this if you hit GraphRecursionError
+    max_revision_loops: 3   # Max QA revision cycles before human review
 ```
 
 ## Project Structure
@@ -655,4 +770,3 @@ For issues, questions, or contributions:
 ---
 
 Built with ❤️ using LangGraph and LangSmith
-
