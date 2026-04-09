@@ -21,10 +21,14 @@ class ArtifactService:
         ensure_directory(self.output_dir)
         for folder in [
             "series_outline",
+            "blog_plans",
             "research",
+            "section_research",
             "drafts",
+            "section_drafts",
             "reviews",
             "final",
+            "section_final",
             "assets",
             "approval",
             "evaluations/blog",

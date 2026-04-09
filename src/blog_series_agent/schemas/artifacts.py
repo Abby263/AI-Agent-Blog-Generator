@@ -12,6 +12,7 @@ class ArtifactType(str, Enum):
     """Known artifact kinds."""
 
     SERIES_OUTLINE = "series_outline"
+    PLAN = "plan"
     RESEARCH = "research"
     DRAFT = "draft"
     REVIEW = "review"

@@ -8,9 +8,11 @@ from pathlib import Path
 from ..agents import (
     AssetPlannerAgent,
     BlogImproverAgent,
+    BlogOutlineAgent,
     BlogResearchAgent,
     BlogReviewerAgent,
     BlogWriterAgent,
+    SectionResearchAgent,
     SeriesArchitectAgent,
     TopicResearchAgent,
 )
@@ -29,6 +31,7 @@ from ..services.content_lint import ContentLintService
 from ..services.evaluation_service import EvaluationService
 from ..services.memory_service import MemoryService
 from ..services.observability import ObservabilityService
+from ..services.research_tools import ResearchToolkit
 from ..utils.files import read_json
 from ..utils.markdown import normalize_markdown_document
 from ..utils.prompts import PromptLoader
@@ -66,7 +69,7 @@ class PipelineService:
         self._start_run(manifest, config, name="outline")
         try:
             llm = build_llm_client(config.model, self.settings)
-            graph = build_outline_graph(self._build_graph_context(llm), manifest)
+            graph = build_outline_graph(self._build_graph_context(llm, config), manifest)
             graph.invoke({"config": config})
             self.artifact_service.set_status(manifest, RunStatus.COMPLETED)
             self.observability_service.finish_run_trace(
@@ -84,7 +87,7 @@ class PipelineService:
         self._start_run(manifest, config, name="blog")
         try:
             llm = build_llm_client(config.model, self.settings)
-            graph_context = self._build_graph_context(llm)
+            graph_context = self._build_graph_context(llm, config)
             outline = self._ensure_outline(config, manifest, graph_context)
             part = self._find_part(outline, part_number)
             graph = build_blog_graph(graph_context, manifest)
@@ -115,7 +118,7 @@ class PipelineService:
         self._start_run(manifest, config, name="series")
         try:
             llm = build_llm_client(config.model, self.settings)
-            graph_context = self._build_graph_context(llm)
+            graph_context = self._build_graph_context(llm, config)
             outline = self._ensure_outline(config, manifest, graph_context)
             target_parts = config.selected_parts or [part.part_number for part in outline.parts]
             graph = build_blog_graph(graph_context, manifest)
@@ -170,7 +173,7 @@ class PipelineService:
         self._start_run(manifest, config, name="resume_series")
         try:
             llm = build_llm_client(config.model, self.settings)
-            graph_context = self._build_graph_context(llm)
+            graph_context = self._build_graph_context(llm, config)
             outline = self._ensure_outline(config, manifest, graph_context)
             target_parts = config.selected_parts or [part.part_number for part in outline.parts]
             graph = build_blog_graph(graph_context, manifest)
@@ -303,6 +306,8 @@ class PipelineService:
             self.content_lint_service.lint_summary(lint_report),
         )
         final_markdown = normalize_markdown_document(final_markdown)
+        if not final_markdown.strip():
+            final_markdown = draft_markdown
         self.artifact_service.write_markdown_artifact(
             manifest=manifest,
             artifact_type=ArtifactType.FINAL,
@@ -413,8 +418,17 @@ class PipelineService:
             record_usage=False,
         )
 
-    def _build_graph_context(self, llm) -> GraphContext:
-        agent_context = AgentContext(llm=llm, prompts=self.prompt_loader)
+    def _build_graph_context(self, llm, config: SeriesRunConfig | None = None) -> GraphContext:
+        toolkit: ResearchToolkit | None = None
+        if config and getattr(config, "enable_web_search", False):
+            toolkit = ResearchToolkit(
+                max_search_results=getattr(config, "web_search_max_results", 6),
+                max_fetch_chars=getattr(config, "web_fetch_max_chars", 5000),
+                max_fetches_per_section=getattr(config, "web_max_fetches_per_section", 3),
+                enabled=True,
+            )
+            logger.info("Research toolkit enabled (web search + URL fetch).")
+        agent_context = AgentContext(llm=llm, prompts=self.prompt_loader, research_toolkit=toolkit)
         return GraphContext(
             artifact_service=self.artifact_service,
             approval_service=self.approval_service,
@@ -425,6 +439,8 @@ class PipelineService:
             topic_research_agent=TopicResearchAgent(agent_context),
             series_architect_agent=SeriesArchitectAgent(agent_context),
             blog_research_agent=BlogResearchAgent(agent_context),
+            blog_outline_agent=BlogOutlineAgent(agent_context),
+            section_research_agent=SectionResearchAgent(agent_context),
             blog_writer_agent=BlogWriterAgent(agent_context),
             blog_reviewer_agent=BlogReviewerAgent(agent_context),
             blog_improver_agent=BlogImproverAgent(agent_context),

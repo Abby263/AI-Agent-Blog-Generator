@@ -378,5 +378,53 @@
     "active": false,
     "created_at": "2026-04-09T03:44:04.649281Z",
     "updated_at": "2026-04-09T03:44:04.649283Z"
+  },
+  {
+    "id": "skill-structural-issue-add-synthesis-after-dense-enumerations",
+    "title": "Add synthesis after dense enumerations",
+    "category": "structural_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "structural_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "After dense lists, comparisons, or architecture walkthroughs, add a short synthesis paragraph that explains what matters, what to remember, and how the pieces relate.",
+    "source_feedback_ids": [
+      "fb-9974fb911b",
+      "fb-1b22c9f231",
+      "fb-75bfe0b02c",
+      "fb-2addbce4df",
+      "fb-66406e3213",
+      "fb-cef3b35e93",
+      "fb-81fa60a319",
+      "fb-58be3dc834",
+      "fb-236e7f10cf",
+      "fb-42fe51d6ac",
+      "fb-0979241d51",
+      "fb-48712a022b",
+      "fb-f5e79f1e66",
+      "fb-60982df605"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T09:54:12.352334Z",
+    "updated_at": "2026-04-09T09:54:12.352338Z"
   }
 ]

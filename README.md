@@ -50,6 +50,16 @@ LangGraph is used for the stateful parts of the workflow where routing matters:
 
 The service layer handles run manifests, disk persistence, cross-part aggregation, API/dashboard integration, and auditable memory retrieval.
 
+## Blog Authoring Flow
+
+Each blog is now generated in three explicit stages:
+
+- series architect decides the ordered list of blog chapters
+- per-blog chapter planner creates a `blog_plans/Part-X-...-plan.{json,md}` artifact with the table of contents and section targets
+- section writer makes multiple LLM calls, one per planned section, before assembling the full Markdown article
+
+This keeps generation inspectable and makes it easier to enforce chapter structure and minimum article length.
+
 ## Deterministic Quality Gates
 
 The repo now includes a deterministic content-lint layer that runs alongside model-based review.

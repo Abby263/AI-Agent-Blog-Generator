@@ -70,6 +70,62 @@ class BlogResearchPacket(BaseModel):
     citation_anchors: list[str] = Field(default_factory=list)
 
 
+class SectionResearchPacket(BaseModel):
+    """Section-specific research packet used by the section writer."""
+
+    section_heading: str
+    section_slug: str = ""
+    section_purpose: str
+    research_summary: str
+    supporting_points: list[str] = Field(default_factory=list)
+    source_notes: list[SourceNote] = Field(default_factory=list)
+    visual_spec: str = ""
+
+
+class SectionDraft(BaseModel):
+    """Section-level draft artifact."""
+
+    section_heading: str
+    section_slug: str
+    markdown: str
+    source_titles: list[str] = Field(default_factory=list)
+    visual_spec: str = ""
+
+
+class BlogDraftPackage(BaseModel):
+    """Assembled draft plus section-level outputs."""
+
+    part_number: int
+    slug: str
+    title: str
+    full_markdown: str
+    section_drafts: list[SectionDraft] = Field(default_factory=list)
+
+
+class BlogSectionPlan(BaseModel):
+    """One planned section inside a chapter-style blog post."""
+
+    heading: str
+    purpose: str
+    key_points: list[str] = Field(default_factory=list)
+    target_words: int = 150
+    subsections: list[str] = Field(default_factory=list)
+    requires_visual: bool = False
+
+
+class BlogChapterPlan(BaseModel):
+    """Structured table of contents and section plan for a single blog."""
+
+    part_number: int
+    slug: str
+    title: str
+    subtitle: str
+    chapter_summary: str
+    previous_part_callback: str = ""
+    next_part_teaser: str = ""
+    section_plans: list[BlogSectionPlan] = Field(default_factory=list)
+
+
 class AssetPlan(BaseModel):
     """Diagram and visual plan for a blog post."""
 
@@ -80,4 +136,3 @@ class AssetPlan(BaseModel):
     chart_ideas: list[str]
     table_ideas: list[str]
     callout_opportunities: list[str]
-

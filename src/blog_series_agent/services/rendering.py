@@ -5,7 +5,15 @@ from __future__ import annotations
 from ..schemas.approval import ApprovalRecord
 from ..schemas.memory import ReusableSkill
 from ..schemas.review import BlogReviewReport
-from ..schemas.series import AssetPlan, BlogResearchPacket, BlogSeriesOutline, TopicResearchDossier
+from ..schemas.series import (
+    AssetPlan,
+    BlogChapterPlan,
+    BlogDraftPackage,
+    BlogResearchPacket,
+    SectionResearchPacket,
+    BlogSeriesOutline,
+    TopicResearchDossier,
+)
 
 
 def render_topic_research_markdown(dossier: TopicResearchDossier) -> str:
@@ -94,6 +102,71 @@ def render_blog_research_markdown(packet: BlogResearchPacket) -> str:
             ],
         ]
     )
+
+
+def render_section_research_markdown(packet: SectionResearchPacket) -> str:
+    return "\n".join(
+        [
+            f"# Section Research: {packet.section_heading}",
+            "",
+            "## Purpose",
+            packet.section_purpose,
+            "",
+            "## Summary",
+            packet.research_summary,
+            "",
+            "## Supporting Points",
+            *[f"- {item}" for item in packet.supporting_points],
+            "",
+            "## Sources",
+            *[
+                f"- **{note.title}** ({note.source_type}, {note.year or 'year unknown'})"
+                + (f" - {note.url}" if note.url else "")
+                + f": {note.note}"
+                for note in packet.source_notes
+            ],
+            "",
+            "## Visual Spec",
+            packet.visual_spec or "None",
+        ]
+    )
+
+
+def render_blog_plan_markdown(plan: BlogChapterPlan) -> str:
+    lines = [
+        f"# Blog Plan: Part {plan.part_number} - {plan.title}",
+        "",
+        f"**Subtitle:** {plan.subtitle}",
+        "",
+        "## Chapter Summary",
+        plan.chapter_summary,
+        "",
+        "## Series Continuity",
+        f"- Previous callback: {plan.previous_part_callback or 'None'}",
+        f"- Next teaser: {plan.next_part_teaser or 'None'}",
+        "",
+        "## Table of Contents Plan",
+    ]
+    for section in plan.section_plans:
+        lines.extend(
+            [
+                f"### {section.heading}",
+                f"- **Purpose:** {section.purpose}",
+                f"- **Target Words:** {section.target_words}",
+                f"- **Requires Visual:** {section.requires_visual}",
+                f"- **Key Points:** {', '.join(section.key_points) or 'None'}",
+                f"- **Subsections:** {', '.join(section.subsections) or 'None'}",
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def render_section_draft_markdown(draft: BlogDraftPackage, section_slug: str) -> str:
+    for section in draft.section_drafts:
+        if section.section_slug == section_slug:
+            return section.markdown
+    return ""
 
 
 def render_review_markdown(report: BlogReviewReport) -> str:

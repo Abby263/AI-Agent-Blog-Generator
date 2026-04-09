@@ -36,8 +36,15 @@ class BlogReviewerAgent(BaseAgent):
             active_skill_ids=retrieved_guidance.retrieved_skill_ids or ["- None"],
             lint_findings=lint_summary,
         )
-        return self.context.llm.generate_structured(
+        report = self.context.llm.generate_structured(
             system_prompt=self.system_prompt,
             user_prompt=prompt,
             schema=BlogReviewReport,
         )
+        if not report.slug:
+            report.slug = part.slug
+        if not report.title:
+            report.title = part.title
+        if not report.part_number:
+            report.part_number = part.part_number
+        return report

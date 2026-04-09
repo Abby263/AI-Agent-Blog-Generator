@@ -61,6 +61,13 @@ class SeriesRunConfig(BaseModel):
     langsmith_endpoint: str | None = None
     langsmith_trace_prompts: bool = False
     langsmith_trace_artifacts: bool = False
+    # Grounded web research (DuckDuckGo + URL fetching)
+    enable_web_search: bool = False
+    web_search_max_results: int = 6
+    web_fetch_max_chars: int = 5000
+    web_max_fetches_per_section: int = 3
+
+    model_config = {"protected_namespaces": (), "populate_by_name": True}
 
     @field_validator("num_parts")
     @classmethod
@@ -114,6 +121,11 @@ class AppSettings(BaseSettings):
     blog_series_langsmith_endpoint: str | None = None
     blog_series_langsmith_trace_prompts: bool = False
     blog_series_langsmith_trace_artifacts: bool = False
+    # Grounded web research (DuckDuckGo + URL fetching)
+    blog_series_enable_web_search: bool = False
+    blog_series_web_search_max_results: int = 6
+    blog_series_web_fetch_max_chars: int = 5000
+    blog_series_web_max_fetches_per_section: int = 3
 
     def default_model_config(self) -> ModelConfig:
         """Build the default model configuration from environment settings."""
@@ -141,6 +153,10 @@ class AppSettings(BaseSettings):
             "langsmith_endpoint": self.blog_series_langsmith_endpoint,
             "langsmith_trace_prompts": self.blog_series_langsmith_trace_prompts,
             "langsmith_trace_artifacts": self.blog_series_langsmith_trace_artifacts,
+            "enable_web_search": self.blog_series_enable_web_search,
+            "web_search_max_results": self.blog_series_web_search_max_results,
+            "web_fetch_max_chars": self.blog_series_web_fetch_max_chars,
+            "web_max_fetches_per_section": self.blog_series_web_max_fetches_per_section,
         }
 
 

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from ..models.base import BaseLLMClient
 from ..utils.prompts import PromptLoader
+
+if TYPE_CHECKING:
+    from ..services.research_tools import ResearchToolkit
 
 
 @dataclass(slots=True)
@@ -14,6 +18,7 @@ class AgentContext:
 
     llm: BaseLLMClient
     prompts: PromptLoader
+    research_toolkit: "ResearchToolkit | None" = field(default=None)
 
 
 class BaseAgent:

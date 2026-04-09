@@ -14,9 +14,11 @@ except ImportError:  # pragma: no cover - handled at runtime when graph executio
 from ..agents import (
     AssetPlannerAgent,
     BlogImproverAgent,
+    BlogOutlineAgent,
     BlogResearchAgent,
     BlogReviewerAgent,
     BlogWriterAgent,
+    SectionResearchAgent,
     SeriesArchitectAgent,
     TopicResearchAgent,
 )
@@ -32,12 +34,14 @@ from ..services.memory_service import MemoryService
 from ..services.observability import ObservabilityService
 from ..services.rendering import (
     render_asset_plan_markdown,
+    render_blog_plan_markdown,
     render_blog_research_markdown,
     render_outline_markdown,
     render_review_markdown,
+    render_section_research_markdown,
     render_topic_research_markdown,
 )
-from ..utils.slug import to_part_filename
+from ..utils.slug import slugify, to_part_filename
 from ..utils.markdown import normalize_markdown_document
 from .routing import (
     route_after_approval,
@@ -64,6 +68,8 @@ class GraphContext:
     topic_research_agent: TopicResearchAgent
     series_architect_agent: SeriesArchitectAgent
     blog_research_agent: BlogResearchAgent
+    blog_outline_agent: BlogOutlineAgent
+    section_research_agent: SectionResearchAgent
     blog_writer_agent: BlogWriterAgent
     blog_reviewer_agent: BlogReviewerAgent
     blog_improver_agent: BlogImproverAgent
@@ -238,10 +244,9 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
             )
         return {"retrieved_skills": retrieval, "approved_skills": approved_skills}
 
-    def draft_node(state: BlogWorkflowState) -> BlogWorkflowState:
+    def blog_outline_node(state: BlogWorkflowState) -> BlogWorkflowState:
         part = state["current_part"]
-        recent_mistakes = context.memory_service.recent_repeated_mistakes() if state["config"].enable_memory else []
-        draft = context.blog_writer_agent.run(
+        chapter_plan = context.blog_outline_agent.run(
             state["config"],
             state["series_outline"],
             part,
@@ -254,8 +259,74 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
                 artifact_type="draft",
                 max_skills=state["config"].max_retrieved_skills,
             ),
+        )
+        context.artifact_service.write_json_artifact(
+            manifest=manifest,
+            artifact_type=ArtifactType.PLAN,
+            folder="blog_plans",
+            filename=to_part_filename(part.part_number, part.slug, suffix="plan", extension="json"),
+            payload=chapter_plan.model_dump(mode="json"),
+            part_number=part.part_number,
+        )
+        context.artifact_service.write_markdown_artifact(
+            manifest=manifest,
+            artifact_type=ArtifactType.PLAN,
+            folder="blog_plans",
+            filename=to_part_filename(part.part_number, part.slug, suffix="plan"),
+            content=render_blog_plan_markdown(chapter_plan),
+            part_number=part.part_number,
+        )
+        context.artifact_service.update_part_status(manifest, part.part_number, PartStatus.OUTLINED)
+        return {"chapter_plan": chapter_plan}
+
+    def section_research_node(state: BlogWorkflowState) -> BlogWorkflowState:
+        part = state["current_part"]
+        packets = context.section_research_agent.run(
+            state["config"],
+            state["chapter_plan"],
+            state["research_packet"],
+        )
+        for packet in packets:
+            section_slug = packet.section_slug or slugify(packet.section_heading)
+            context.artifact_service.write_json_artifact(
+                manifest=manifest,
+                artifact_type=ArtifactType.RESEARCH,
+                folder="section_research",
+                filename=to_part_filename(part.part_number, part.slug, suffix=f"{section_slug}-research", extension="json"),
+                payload=packet.model_dump(mode="json"),
+                part_number=part.part_number,
+            )
+            context.artifact_service.write_markdown_artifact(
+                manifest=manifest,
+                artifact_type=ArtifactType.RESEARCH,
+                folder="section_research",
+                filename=to_part_filename(part.part_number, part.slug, suffix=f"{section_slug}-research"),
+                content=render_section_research_markdown(packet),
+                part_number=part.part_number,
+            )
+        return {"section_research_packets": packets}
+
+    def draft_node(state: BlogWorkflowState) -> BlogWorkflowState:
+        part = state["current_part"]
+        recent_mistakes = context.memory_service.recent_repeated_mistakes() if state["config"].enable_memory else []
+        draft_package = context.blog_writer_agent.run(
+            state["config"],
+            state["series_outline"],
+            part,
+            state["research_packet"],
+            state["chapter_plan"],
+            state.get("section_research_packets", []),
+            state.get("retrieved_skills")
+            or _empty_retrieval(
+                topic=state["config"].topic,
+                audience=state["config"].target_audience,
+                part_number=part.part_number,
+                artifact_type="draft",
+                max_skills=state["config"].max_retrieved_skills,
+            ),
             recent_mistakes,
         )
+        draft = draft_package.full_markdown
         draft = normalize_markdown_document(draft)
         path = context.artifact_service.write_markdown_artifact(
             manifest=manifest,
@@ -273,9 +344,23 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
                 "active_skill_ids": (state.get("retrieved_skills") or _empty_retrieval(topic="", audience="", part_number=part.part_number, artifact_type="draft", max_skills=0)).retrieved_skill_ids,
             },
         )
+        for section in draft_package.section_drafts:
+            context.artifact_service.write_markdown_artifact(
+                manifest=manifest,
+                artifact_type=ArtifactType.DRAFT,
+                folder="section_drafts",
+                filename=to_part_filename(part.part_number, part.slug, suffix=f"{section.section_slug}-draft"),
+                content=section.markdown,
+                part_number=part.part_number,
+            )
         context.artifact_service.update_part_status(manifest, part.part_number, PartStatus.DRAFTED)
         draft_lint_report = context.content_lint_service.lint_markdown(draft, state["config"])
-        return {"draft_markdown": draft, "final_markdown": draft, "draft_lint_report": draft_lint_report}
+        return {
+            "draft_markdown": draft,
+            "final_markdown": draft,
+            "draft_lint_report": draft_lint_report,
+            "draft_package": draft_package,
+        }
 
     def length_check_node(state: BlogWorkflowState) -> BlogWorkflowState:
         """Check if the draft meets the minimum word count; if not, request expansion."""
@@ -446,16 +531,34 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
                 max_skills=config.max_retrieved_skills,
             )
         )
-        final_markdown = context.blog_improver_agent.run(
-            state["config"],
-            part,
-            state["draft_markdown"],
-            review,
-            improve_retrieval,
-            context.content_lint_service.lint_summary(draft_lint_report),
-            approval_comments=approval_comments,
-        )
-        final_markdown = normalize_markdown_document(final_markdown)
+        draft_package = state.get("draft_package")
+        final_package = None
+        if draft_package and state.get("chapter_plan"):
+            final_package = context.blog_improver_agent.run_sectioned(
+                state["config"],
+                part,
+                state["chapter_plan"],
+                draft_package,
+                state.get("section_research_packets", []),
+                review,
+                improve_retrieval,
+                context.content_lint_service.lint_summary(draft_lint_report),
+                approval_comments=approval_comments,
+            )
+            final_markdown = normalize_markdown_document(final_package.full_markdown)
+        else:
+            final_markdown = context.blog_improver_agent.run(
+                state["config"],
+                part,
+                state["draft_markdown"],
+                review,
+                improve_retrieval,
+                context.content_lint_service.lint_summary(draft_lint_report),
+                approval_comments=approval_comments,
+            )
+            final_markdown = normalize_markdown_document(final_markdown)
+        if not final_markdown.strip():
+            final_markdown = state["draft_markdown"]
         context.artifact_service.write_markdown_artifact(
             manifest=manifest,
             artifact_type=ArtifactType.FINAL,
@@ -464,11 +567,22 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
             content=final_markdown,
             part_number=part.part_number,
         )
+        if final_package:
+            for section in final_package.section_drafts:
+                context.artifact_service.write_markdown_artifact(
+                    manifest=manifest,
+                    artifact_type=ArtifactType.FINAL,
+                    folder="section_final",
+                    filename=to_part_filename(part.part_number, part.slug, suffix=f"{section.section_slug}-final"),
+                    content=section.markdown,
+                    part_number=part.part_number,
+                )
         context.artifact_service.update_part_status(manifest, part.part_number, PartStatus.IMPROVED)
         iteration = state.get("approval_iteration", 0) + 1
         final_lint_report = context.content_lint_service.lint_markdown(final_markdown, config)
         return {
             "final_markdown": final_markdown,
+            "final_package": final_package,
             "final_lint_report": final_lint_report,
             "approval_record": refreshed_record,
             "approval_iteration": iteration,
@@ -587,6 +701,8 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
 
     graph.add_node("research", research_node)
     graph.add_node("retrieve_guidance", retrieve_guidance_node)
+    graph.add_node("blog_outline", blog_outline_node)
+    graph.add_node("section_research", section_research_node)
     graph.add_node("draft", draft_node)
     graph.add_node("length_check", length_check_node)
     graph.add_node("review", review_node)
@@ -598,7 +714,9 @@ def build_blog_graph(context: GraphContext, manifest) -> object:
 
     graph.add_edge(START, "research")
     graph.add_edge("research", "retrieve_guidance")
-    graph.add_edge("retrieve_guidance", "draft")
+    graph.add_edge("retrieve_guidance", "blog_outline")
+    graph.add_edge("blog_outline", "section_research")
+    graph.add_edge("section_research", "draft")
     graph.add_edge("draft", "length_check")
     graph.add_conditional_edges("length_check", route_after_length_check, {"length_check": "length_check", "review": "review", "asset": "asset", "evaluation": "evaluation", "approval": "approval"})
     graph.add_conditional_edges(
