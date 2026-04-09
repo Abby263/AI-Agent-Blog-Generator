@@ -1,0 +1,35 @@
+topic: ML System Design
+target_audience: intermediate
+num_parts: 12
+output_dir: outputs
+selected_parts:
+  - 1
+  - 2
+  - 3
+  - 6
+  - 8
+  - 12
+model:
+  provider: openai
+  model_name: gpt-4o-mini
+  temperature: 0.2
+  max_tokens: 4000
+enable_review: true
+enable_improve: true
+enable_asset_plan: true
+enable_human_approval: true
+enable_evaluation: true
+enable_memory: true
+use_memory: true
+max_retrieved_skills: 5
+memory_auto_approve_in_dev: false
+min_word_count: 1800
+max_word_count: 2600
+run_mode: production
+approval_required: true
+enable_langsmith: false
+langsmith_project: blog-series-agent
+langsmith_api_key_env: LANGSMITH_API_KEY
+langsmith_endpoint:
+langsmith_trace_prompts: false
+langsmith_trace_artifacts: false

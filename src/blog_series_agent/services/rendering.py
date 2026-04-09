@@ -1,0 +1,208 @@
+"""Markdown renderers for structured artifacts."""
+
+from __future__ import annotations
+
+from ..schemas.approval import ApprovalRecord
+from ..schemas.memory import ReusableSkill
+from ..schemas.review import BlogReviewReport
+from ..schemas.series import AssetPlan, BlogResearchPacket, BlogSeriesOutline, TopicResearchDossier
+
+
+def render_topic_research_markdown(dossier: TopicResearchDossier) -> str:
+    return "\n".join(
+        [
+            f"# Topic Research: {dossier.topic}",
+            "",
+            f"**Audience:** {dossier.target_audience}",
+            "",
+            "## Positioning Summary",
+            dossier.positioning_summary,
+            "",
+            "## Key Themes",
+            *[f"- {item}" for item in dossier.key_themes],
+            "",
+            "## Recent Developments",
+            *[f"- {item}" for item in dossier.recent_developments],
+            "",
+            "## Recommended Progression",
+            *[f"- {item}" for item in dossier.recommended_progression],
+            "",
+            "## Source Notes",
+            *[
+                f"- **{note.title}** ({note.source_type})"
+                + (f" - {note.url}" if note.url else "")
+                + f": {note.note}"
+                for note in dossier.source_notes
+            ],
+        ]
+    )
+
+
+def render_outline_markdown(outline: BlogSeriesOutline) -> str:
+    lines = [
+        f"# Blog Series Outline: {outline.topic}",
+        "",
+        f"**Audience:** {outline.target_audience}",
+        "",
+        "## Narrative Arc",
+        outline.narrative_arc,
+        "",
+        "## Learning Goals",
+        *[f"- {goal}" for goal in outline.learning_goals],
+        "",
+        "## Parts",
+    ]
+    for part in outline.parts:
+        lines.extend(
+            [
+                f"### Part {part.part_number}: {part.title}",
+                f"- **Slug:** {part.slug}",
+                f"- **Purpose:** {part.purpose}",
+                f"- **Prerequisite Context:** {', '.join(part.prerequisite_context) or 'None'}",
+                f"- **Key Concepts:** {', '.join(part.key_concepts)}",
+                f"- **Recommended Diagrams:** {', '.join(part.recommended_diagrams)}",
+                f"- **Dependencies:** {', '.join(str(dep) for dep in part.dependencies_on_previous) or 'None'}",
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def render_blog_research_markdown(packet: BlogResearchPacket) -> str:
+    return "\n".join(
+        [
+            f"# Blog Research: Part {packet.part_number} - {packet.title}",
+            "",
+            "## Summary",
+            packet.summary,
+            "",
+            "## Core Questions",
+            *[f"- {item}" for item in packet.core_questions],
+            "",
+            "## Examples",
+            *[f"- {item}" for item in packet.examples],
+            "",
+            "## System Design Insights",
+            *[f"- {item}" for item in packet.system_design_insights],
+            "",
+            "## Practical References",
+            *[
+                f"- **{note.title}** ({note.source_type})"
+                + (f" - {note.url}" if note.url else "")
+                + f": {note.note}"
+                for note in packet.practical_references
+            ],
+        ]
+    )
+
+
+def render_review_markdown(report: BlogReviewReport) -> str:
+    scorecard = report.scorecard
+    return "\n".join(
+        [
+            f"# Review Report: Part {report.part_number} - {report.title}",
+            "",
+            f"**Total Score:** {scorecard.total_score}/100",
+            f"**Consistency Score:** {scorecard.consistency_score}/50",
+            f"**Technical Quality Score:** {scorecard.technical_quality_score}/50",
+            f"**Recommendation:** {report.final_recommendation}",
+            "",
+            "## Summary",
+            report.summary,
+            "",
+            "## Strengths",
+            *[f"- {item}" for item in report.strengths],
+            "",
+            "## Issues",
+            *[f"- {item}" for item in report.issues],
+            "",
+            "## Priority Fixes",
+            *[f"- {item}" for item in report.priority_fixes],
+            "",
+            "## Suggested Additions",
+            *[f"- {item}" for item in report.suggested_additions],
+            "",
+            "## Freshness Findings",
+            *[f"- {item}" for item in report.freshness_findings],
+            "",
+            "## Skill Adherence",
+            f"- **Active Skills Checked:** {', '.join(report.active_skills_checked) or 'None'}",
+            f"- **Skills Followed:** {', '.join(report.skills_followed) or 'None'}",
+            f"- **Skills Violated:** {', '.join(report.skills_violated) or 'None'}",
+            f"- **Skill Adherence Score:** {report.skill_adherence_score}/10",
+            *[f"- {item}" for item in report.skill_adherence_notes],
+        ]
+    )
+
+
+def render_asset_plan_markdown(plan: AssetPlan) -> str:
+    return "\n".join(
+        [
+            f"# Asset Plan: Part {plan.part_number} - {plan.slug}",
+            "",
+            "## Summary",
+            plan.summary,
+            "",
+            "## Visuals",
+            *[f"- {item}" for item in plan.visuals],
+            "",
+            "## Chart Ideas",
+            *[f"- {item}" for item in plan.chart_ideas],
+            "",
+            "## Table Ideas",
+            *[f"- {item}" for item in plan.table_ideas],
+            "",
+            "## Callout Opportunities",
+            *[f"- {item}" for item in plan.callout_opportunities],
+        ]
+    )
+
+
+def render_approval_markdown(record: ApprovalRecord) -> str:
+    return "\n".join(
+        [
+            f"# Approval Record: Part {record.part_number} - {record.slug}",
+            "",
+            f"**Status:** {record.status}",
+            f"**Reviewer:** {record.reviewer_name}",
+            f"**Timestamp:** {record.timestamp.isoformat()}",
+            "",
+            "## Comments",
+            record.comments or "No comments provided.",
+            "",
+            "## Linked Artifacts",
+            f"- Draft: {record.draft_path or 'N/A'}",
+            f"- Review: {record.review_path or 'N/A'}",
+            f"- Final: {record.final_path or 'N/A'}",
+            f"- Asset Plan: {record.asset_plan_path or 'N/A'}",
+        ]
+    )
+
+
+def render_skills_markdown(title: str, skills: list[ReusableSkill]) -> str:
+    return "\n".join(
+        [
+            f"# {title}",
+            "",
+            *(
+                [
+                    "\n".join(
+                        [
+                            f"## {skill.title}",
+                            f"- **ID:** {skill.id}",
+                            f"- **Category:** {skill.category}",
+                            f"- **Status:** {skill.status}",
+                            f"- **Active:** {skill.active}",
+                            f"- **Usage Count:** {skill.usage_count}",
+                            f"- **Confidence:** {skill.confidence_score}",
+                            f"- **Guidance:** {skill.guidance_text}",
+                            f"- **Source Feedback IDs:** {', '.join(skill.source_feedback_ids) or 'None'}",
+                        ]
+                    )
+                    for skill in skills
+                ]
+                if skills
+                else ["No skills available."]
+            ),
+        ]
+    )
