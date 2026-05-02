@@ -451,6 +451,22 @@ Key environment variables:
 - `BLOG_SERIES_WEB_MAX_FETCHES_PER_SECTION`
 - `BLOG_SERIES_CORS_ORIGINS`
 
+## Production Workflow
+
+All development should happen on short-lived branches and merge to `main` through pull requests after CI passes. See `CONTRIBUTING.md` for the required branch, PR, validation, and release workflow.
+
+The Vercel project `ai-agent-blog-generator` is connected to this GitHub repository with:
+
+- production branch: `main`
+- root directory: `frontend`
+- framework: `Next.js`
+- install command: `npm ci`
+- build command: `npm run build`
+
+Pull requests create Vercel preview deployments. Merges to `main` create production deployments automatically.
+
+Operational details are documented in `docs/PRODUCTION_OPERATIONS.md`.
+
 ## CLI
 
 Generate a full series:
@@ -631,13 +647,15 @@ npx vercel --prod
 
 The Vercel project is named `ai-agent-blog-generator`. The current stable UI alias is [ai-agent-blog-generator-app.vercel.app](https://ai-agent-blog-generator-app.vercel.app).
 
+Normal production deploys should happen through GitHub pull request merges into `main`, not ad hoc local deploys.
+
 Set `NEXT_PUBLIC_API_BASE_URL` in Vercel to the hosted FastAPI backend. The UI also exposes an editable API URL field for local or temporary backend targets.
 
 ## License
 
 This project is licensed for noncommercial use under the PolyForm Noncommercial License 1.0.0. See `LICENSE` and `NOTICE`.
 
-Commercial use requires a separate written license. See `COMMERCIAL.md`.
+Commercial use is not allowed unless a separate written commercial license is granted. See `COMMERCIAL.md`.
 
 ## Output Conventions
 
