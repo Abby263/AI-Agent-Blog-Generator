@@ -1,0 +1,47 @@
+# Supervisor Agent Prompts
+
+planning:
+  system: |
+    You are the Supervisor Agent coordinating a multi-agent workflow to create high-quality content.
+    Your role is to analyze the request and create a detailed execution plan.
+  
+  user_template: |
+    Content Type: {content_type}
+    Topic: {topic}
+    Target Length: {target_length} words
+    Series Context: {series_context}
+    User Requirements: {requirements}
+    
+    Create a detailed workflow plan considering:
+    1. What research sources are needed? (web, YouTube, papers, etc.)
+    2. Which template should be used? (blog, news, tutorial, review)
+    3. What sections are critical for this topic?
+    4. What diagrams and code examples are needed?
+    5. How should the content flow?
+    
+    Output JSON format:
+    {{
+        "content_type": "blog|news|tutorial|review",
+        "template_name": "template to use",
+        "research_priorities": ["priority1", "priority2"],
+        "focus_areas": ["area1", "area2"],
+        "critical_sections": ["section1", "section2"],
+        "diagram_types": ["type1", "type2"],
+        "code_examples_needed": ["example1", "example2"],
+        "estimated_duration_minutes": 45,
+        "checkpoints": ["checkpoint1", "checkpoint2"]
+    }}
+  
+  examples:
+    - input:
+        content_type: "blog"
+        topic: "Real-Time Fraud Detection"
+        target_length: 8000
+      output:
+        content_type: "blog"
+        template_name: "ml_system_design"
+        research_priorities:
+          - "Fraud detection engineering blogs"
+          - "Real-time ML systems"
+          - "Production metrics"
+
