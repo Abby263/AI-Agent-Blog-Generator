@@ -33,19 +33,7 @@ class BaseLLMClient(ABC):
     ) -> SchemaT:
         """Generate structured output validated against a Pydantic schema."""
 
-    def generate_with_tools(
-        self,
-        *,
-        system_prompt: str,
-        user_prompt: str,
-        tools: list[Any],
-        max_iterations: int = 6,
-    ) -> str:
-        """
-        Run a ReAct tool-calling loop: the model can call any of *tools* to
-        gather information, then synthesises a final text response.
+    def as_chat_model(self) -> Any | None:
+        """Return the underlying LangChain chat model when one is available."""
 
-        Default implementation falls back to generate_text (no tool use).
-        Override in concrete clients that support function-calling.
-        """
-        return self.generate_text(system_prompt=system_prompt, user_prompt=user_prompt)
+        return None

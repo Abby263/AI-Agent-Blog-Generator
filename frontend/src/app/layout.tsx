@@ -1,29 +1,21 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const jetBrains = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-});
-
 export const metadata: Metadata = {
-  title: "AI Agent Blog Series Generator",
+  title: "Agentic Blog Series Control Plane",
   description:
-    "Generate multi-chapter ML system design blogs via LangGraph-powered agents.",
+    "Operate a LangGraph and DeepAgents pipeline for grounded technical blog series generation.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetBrains.variable} antialiased`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

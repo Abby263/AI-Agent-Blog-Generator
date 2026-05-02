@@ -276,7 +276,7 @@ def test_as_context_block_failed_page():
 # ---------------------------------------------------------------------------
 
 
-def test_as_langchain_tools_returns_two_tools():
+def test_as_langchain_tools_returns_research_tools():
     try:
         from langchain_core.tools import StructuredTool  # noqa: F401
     except ImportError:
@@ -284,10 +284,40 @@ def test_as_langchain_tools_returns_two_tools():
 
     toolkit = ResearchToolkit(enabled=True)
     tools = toolkit.as_langchain_tools()
-    assert len(tools) == 2
+    assert len(tools) == 3
     tool_names = {t.name for t in tools}
+    assert "research_sources" in tool_names
     assert "web_search" in tool_names
     assert "fetch_url" in tool_names
+
+
+def test_as_langchain_tools_research_sources_calls_batched_research():
+    try:
+        from langchain_core.tools import StructuredTool  # noqa: F401
+    except ImportError:
+        pytest.skip("langchain_core not installed")
+
+    toolkit = ResearchToolkit(enabled=True, max_fetches_per_section=2)
+    fake_result = ResearchToolResult(
+        search_hits=[_hit("https://arxiv.org/abs/1", title="Paper", snippet="Evidence")],
+        fetched_pages=[
+            FetchedPage(
+                url="https://arxiv.org/abs/1",
+                title="Paper",
+                text="Fetched evidence",
+                word_count=2,
+                success=True,
+                image_url="https://arxiv.org/image.png",
+            )
+        ],
+    )
+    with patch.object(toolkit, "research_queries", return_value=fake_result) as mock_research:
+        tools = toolkit.as_langchain_tools()
+        research_tool = next(t for t in tools if t.name == "research_sources")
+        result = research_tool.invoke({"query": "ML serving monitoring", "fetch_top_n": 1})
+        mock_research.assert_called_once_with(["ML serving monitoring"], fetch_top_n=1)
+        assert "Fetched evidence" in result
+        assert "Primary image URL: https://arxiv.org/image.png" in result
 
 
 def test_as_langchain_tools_web_search_calls_toolkit():

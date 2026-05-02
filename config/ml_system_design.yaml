@@ -1,0 +1,17 @@
+topic: "Machine Learning System Design"
+audience: "intermediate"
+num_parts: 12
+output_dir: "outputs"
+run_mode: "dev"
+approval_required: false
+enable_review: true
+enable_improve: true
+enable_asset_plan: true
+enable_human_approval: false
+enable_evaluation: true
+enable_memory: true
+use_memory: true
+max_retrieved_skills: 5
+min_word_count: 2500
+max_word_count: 4500
+enable_web_search: true

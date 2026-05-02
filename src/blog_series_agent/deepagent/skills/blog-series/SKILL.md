@@ -4,7 +4,7 @@ description: Plan and write a cohesive long-form technical blog series.
 stages:
   - topic_research
   - series_architect
-  - blog_outline
+  - plan
   - draft
   - review
   - final

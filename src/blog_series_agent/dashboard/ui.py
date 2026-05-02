@@ -45,18 +45,22 @@ if page == "Start Run":
         topic = st.text_input("Topic", value="ML System Design")
         audience = st.selectbox("Audience", ["beginner", "intermediate", "advanced"], index=1)
         num_parts = st.number_input("Number of parts", min_value=1, max_value=20, value=12)
+        st.caption("Blog generation uses the DeepAgents content builder.")
         use_memory = st.toggle("Use approved skill memory", value=True)
+        enable_web_search = st.toggle("Enable web search/fetch tools", value=settings.blog_series_enable_web_search)
         run_in_background = st.toggle("Run in background", value=False)
         submitted = st.form_submit_button("Generate series")
         if submitted:
+            overrides = settings.default_run_overrides()
+            overrides["use_memory"] = use_memory
+            overrides["enable_web_search"] = enable_web_search
             config = SeriesRunConfig(
                 topic=topic,
                 audience=audience,
                 num_parts=int(num_parts),
                 model=settings.default_model_config(),
                 output_dir=settings.blog_series_output_dir,
-                use_memory=use_memory,
-                **settings.default_run_overrides(),
+                **overrides,
             )
             if run_in_background:
                 import threading

@@ -12,6 +12,7 @@ def test_series_run_config_validation() -> None:
         approval_required=False,
     )
     assert config.topic == "RAG Systems"
+    assert config.enable_web_search is False
 
 
 def test_load_run_config(tmp_path: Path) -> None:
@@ -21,6 +22,7 @@ def test_load_run_config(tmp_path: Path) -> None:
         "target_audience: intermediate\n"
         "num_parts: 10\n"
         "run_mode: review\n"
+        "enable_web_search: true\n"
         "approval_required: true\n",
         encoding="utf-8",
     )
@@ -28,4 +30,4 @@ def test_load_run_config(tmp_path: Path) -> None:
     config = load_run_config(config_path)
     assert config.topic == "AI Agents"
     assert config.num_parts == 10
-
+    assert config.enable_web_search is True

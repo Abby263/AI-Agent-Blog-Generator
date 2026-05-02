@@ -40,6 +40,27 @@ def test_length_check_routes_to_expansion_when_short() -> None:
     assert route_after_length_check({"config": config, "draft_markdown": "short draft", "length_expansion_iteration": 2}) == "review"
 
 
+def test_routing_can_complete_when_optional_gates_disabled() -> None:
+    config = SeriesRunConfig(
+        topic="AI Agents",
+        audience="intermediate",
+        num_parts=1,
+        run_mode=RunMode.DEV,
+        approval_required=False,
+        enable_review=False,
+        enable_improve=False,
+        enable_asset_plan=False,
+        enable_evaluation=False,
+        enable_memory=False,
+        enable_human_approval=False,
+        min_word_count=10,
+    )
+
+    assert route_after_length_check({"config": config, "draft_markdown": " ".join(["word"] * 12)}) == "complete"
+    assert route_after_review({"config": config}) == "complete"
+    assert route_after_improve({"config": config}) == "complete"
+
+
 def test_approval_routing() -> None:
     pending = ApprovalRecord(part_number=1, slug="intro", status=ApprovalDecision.PENDING, reviewer_name="pending")
     approved = ApprovalRecord(part_number=1, slug="intro", status=ApprovalDecision.APPROVED, reviewer_name="reviewer")

@@ -35,6 +35,10 @@ class SeriesRunRequest(BaseModel):
     langsmith_endpoint: str | None = None
     langsmith_trace_prompts: bool = False
     langsmith_trace_artifacts: bool = False
+    enable_web_search: bool = False
+    web_search_max_results: int = 6
+    web_fetch_max_chars: int = 5000
+    web_max_fetches_per_section: int = 3
     model: ModelConfig | None = None
 
 
@@ -42,6 +46,10 @@ class OutlineRunRequest(BaseModel):
     topic: str
     target_audience: str = "intermediate"
     num_parts: int = 12
+    enable_web_search: bool = False
+    web_search_max_results: int = 6
+    web_fetch_max_chars: int = 5000
+    web_max_fetches_per_section: int = 3
     model: ModelConfig | None = None
 
 
@@ -50,6 +58,10 @@ class BlogRunRequest(BaseModel):
     target_audience: str = "intermediate"
     part: int
     num_parts: int = 12
+    enable_web_search: bool = False
+    web_search_max_results: int = 6
+    web_fetch_max_chars: int = 5000
+    web_max_fetches_per_section: int = 3
     model: ModelConfig | None = None
 
 

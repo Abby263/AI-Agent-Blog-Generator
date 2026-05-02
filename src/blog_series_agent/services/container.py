@@ -17,7 +17,7 @@ def build_application_services() -> dict[str, object]:
 
     settings = get_settings()
     artifact_service = ArtifactService(settings.blog_series_output_dir)
-    memory_service = MemoryService()
+    memory_service = MemoryService(settings.blog_series_output_dir / "memory")
     return {
         "settings": settings,
         "prompt_loader": PromptLoader(),

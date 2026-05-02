@@ -8,11 +8,7 @@ from pathlib import Path
 from ..agents import (
     AssetPlannerAgent,
     BlogImproverAgent,
-    BlogOutlineAgent,
-    BlogResearchAgent,
     BlogReviewerAgent,
-    BlogWriterAgent,
-    SectionResearchAgent,
     SeriesArchitectAgent,
     TopicResearchAgent,
 )
@@ -28,6 +24,7 @@ from ..schemas.series import BlogSeriesOutline, BlogSeriesPart
 from ..services.approval_service import ApprovalService
 from ..services.artifact_service import ArtifactService
 from ..services.content_lint import ContentLintService
+from ..services.deepagent_content_builder import DeepAgentContentBuilder
 from ..services.deepagent_profile import DeepAgentProfileLoader
 from ..services.evaluation_service import EvaluationService
 from ..services.memory_service import MemoryService
@@ -430,6 +427,11 @@ class PipelineService:
             )
             logger.info("Research toolkit enabled (web search + URL fetch).")
         deepagent_profile = DeepAgentProfileLoader().load()
+        deepagent_content_builder = DeepAgentContentBuilder(
+            llm=llm,
+            profile=deepagent_profile,
+            research_toolkit=toolkit,
+        )
         agent_context = AgentContext(
             llm=llm,
             prompts=self.prompt_loader,
@@ -443,12 +445,9 @@ class PipelineService:
             evaluation_service=self.evaluation_service,
             memory_service=self.memory_service,
             observability_service=self.observability_service,
+            deepagent_content_builder=deepagent_content_builder,
             topic_research_agent=TopicResearchAgent(agent_context),
             series_architect_agent=SeriesArchitectAgent(agent_context),
-            blog_research_agent=BlogResearchAgent(agent_context),
-            blog_outline_agent=BlogOutlineAgent(agent_context),
-            section_research_agent=SectionResearchAgent(agent_context),
-            blog_writer_agent=BlogWriterAgent(agent_context),
             blog_reviewer_agent=BlogReviewerAgent(agent_context),
             blog_improver_agent=BlogImproverAgent(agent_context),
             asset_planner_agent=AssetPlannerAgent(agent_context),
@@ -492,6 +491,7 @@ class PipelineService:
                 "topic": config.topic,
                 "num_parts": config.num_parts,
                 "run_mode": config.run_mode.value,
+                "builder": "deepagents",
                 "use_memory": config.use_memory,
                 "enable_evaluation": config.enable_evaluation,
             },

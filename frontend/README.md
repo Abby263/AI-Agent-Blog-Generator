@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agentic Blog Series UI
 
-## Getting Started
+Next.js control-plane UI for the LangGraph + DeepAgents blog-series pipeline.
 
-First, run the development server:
+Live deployment: [ai-agent-blog-generator-app.vercel.app](https://ai-agent-blog-generator-app.vercel.app)
+
+## Local Development
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The UI talks to the FastAPI service. Start the backend separately:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+uv run python -m blog_series_agent api
+```
 
-## Learn More
+Set the backend URL in the UI header or with:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Deploy this directory as the `ai-agent-blog-generator` Vercel project. Configure:
 
-## Deploy on Vercel
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://your-fastapi-host.example.com
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+If you are using the local FastAPI service, keep the editable API URL field and point it at a reachable backend.

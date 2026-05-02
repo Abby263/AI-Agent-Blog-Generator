@@ -2,8 +2,8 @@
 name: section-grounding
 description: Ground every section in exact source links and section-specific evidence.
 stages:
-  - blog_research
-  - section_research
+  - research
+  - plan
   - draft
   - final
   - review

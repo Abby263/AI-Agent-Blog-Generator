@@ -1,4 +1,4 @@
-"""Topic research agent — supports memory-only and grounded (tool-call) modes."""
+"""Topic research agent with deterministic grounded evidence collection."""
 
 from __future__ import annotations
 
@@ -17,11 +17,6 @@ class TopicResearchAgent(BaseAgent):
     system_prompt = (
         "You are a senior technical research strategist. Produce a precise research dossier and "
         "return valid structured output only."
-    )
-    grounded_system_prompt = (
-        "You are a senior technical research strategist with access to live web search and URL "
-        "fetching tools. Search for the most current, credible information on the topic before "
-        "producing your research dossier. Ground all claims in what you actually retrieve."
     )
 
     def run(self, config: SeriesRunConfig) -> TopicResearchDossier:
@@ -46,42 +41,22 @@ class TopicResearchAgent(BaseAgent):
         )
 
     def _run_grounded(self, config: SeriesRunConfig) -> TopicResearchDossier:
-        """
-        Two-phase grounded research:
-          1. ReAct loop: model searches for landscape overview, recent papers, and production examples.
-          2. Structured synthesis from gathered evidence.
-        """
+        """Run deterministic grounded research, then synthesize a typed dossier."""
         toolkit = self.context.research_toolkit
         if toolkit is None or not toolkit.enabled:
             return self._run_memory_only(config)
 
-        lc_tools = toolkit.as_langchain_tools()
         logger.info("Topic research (grounded) — topic: %s", config.topic)
-
-        # ── Phase 1: live evidence gathering ────────────────────────────
-        search_prompt = (
-            f"You are building a comprehensive research dossier on: **{config.topic}**\n\n"
-            f"**Target audience:** {config.target_audience}\n"
-            f"**Series length:** {config.num_parts} parts\n\n"
-            f"Use web_search and fetch_url to gather:\n"
-            f"  1. Overview of the current state-of-the-art for {config.topic}\n"
-            f"  2. 3-5 recent papers, benchmark results, or major developments (2022-2025)\n"
-            f"  3. Production engineering blog posts from top tech companies about {config.topic}\n"
-            f"  4. Known open problems, active debates, and emerging directions\n\n"
-            f"Run 4-5 specific searches. Fetch 3-4 of the most informative pages. "
-            f"Summarise all findings with exact titles, URLs, dates, and key technical points. "
-            f"Do not fabricate any sources."
+        research_result = toolkit.research_queries(
+            [
+                f"{config.topic} state of the art production engineering",
+                f"{config.topic} recent papers benchmarks 2024 2025",
+                f"{config.topic} engineering blog production lessons",
+                f"{config.topic} official documentation best practices",
+            ],
+            fetch_top_n=min(4, toolkit.max_fetches_per_section + 1),
         )
-        evidence_text = self.context.llm.generate_with_tools(
-            system_prompt=self.system_prompt_with_deepagent(
-                stage="topic_research",
-                subagent_name="topic_researcher",
-                base_prompt=self.grounded_system_prompt,
-            ),
-            user_prompt=search_prompt,
-            tools=lc_tools,
-            max_iterations=10,
-        )
+        evidence_text = research_result.as_context_block()
         if count_urls(evidence_text) < 3:
             fallback_queries = [
                 f"{config.topic} engineering blog",

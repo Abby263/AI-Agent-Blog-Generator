@@ -11,12 +11,8 @@ from ..schemas.memory import FeedbackItem, MemoryUpdateResult, ReusableSkill, Sk
 from ..schemas.review import BlogReviewReport
 from ..schemas.series import (
     AssetPlan,
-    BlogChapterPlan,
-    BlogDraftPackage,
-    BlogResearchPacket,
     BlogSeriesOutline,
     BlogSeriesPart,
-    SectionResearchPacket,
     TopicResearchDossier,
 )
 
@@ -31,15 +27,10 @@ class BlogWorkflowState(TypedDict, total=False):
     config: SeriesRunConfig
     series_outline: BlogSeriesOutline
     current_part: BlogSeriesPart
-    research_packet: BlogResearchPacket
-    chapter_plan: BlogChapterPlan
-    section_research_packets: list[SectionResearchPacket]
     draft_markdown: str
-    draft_package: BlogDraftPackage
     draft_lint_report: ContentLintReport
     review_report: BlogReviewReport
     final_markdown: str
-    final_package: BlogDraftPackage
     final_lint_report: ContentLintReport
     asset_plan: AssetPlan
     blog_evaluation: BlogEvaluation

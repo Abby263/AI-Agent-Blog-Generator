@@ -24,7 +24,11 @@ def route_after_length_check(state: BlogWorkflowState) -> str:
         return "asset"
     if config.enable_evaluation:
         return "evaluation"
-    return "approval"
+    if config.enable_memory:
+        return "memory_update"
+    if config.enable_human_approval and config.approval_required:
+        return "approval"
+    return "complete"
 
 
 def route_after_review(state: BlogWorkflowState) -> str:
@@ -35,7 +39,11 @@ def route_after_review(state: BlogWorkflowState) -> str:
         return "asset"
     if config.enable_evaluation:
         return "evaluation"
-    return "approval"
+    if config.enable_memory:
+        return "memory_update"
+    if config.enable_human_approval and config.approval_required:
+        return "approval"
+    return "complete"
 
 
 def route_after_improve(state: BlogWorkflowState) -> str:
@@ -44,7 +52,11 @@ def route_after_improve(state: BlogWorkflowState) -> str:
         return "asset"
     if config.enable_evaluation:
         return "evaluation"
-    return "approval"
+    if config.enable_memory:
+        return "memory_update"
+    if config.enable_human_approval and config.approval_required:
+        return "approval"
+    return "complete"
 
 
 def route_after_asset(state: BlogWorkflowState) -> str:
