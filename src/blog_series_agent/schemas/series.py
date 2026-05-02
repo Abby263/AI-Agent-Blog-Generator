@@ -80,6 +80,14 @@ class SectionResearchPacket(BaseModel):
     supporting_points: list[str] = Field(default_factory=list)
     source_notes: list[SourceNote] = Field(default_factory=list)
     visual_spec: str = ""
+    image_url: str | None = None
+    image_credit_url: str | None = None
+    image_credit_text: str = ""
+    image_alt_text: str = ""
+    code_example_title: str = ""
+    code_example_language: str = ""
+    code_example: str = ""
+    code_example_notes: str = ""
 
 
 class SectionDraft(BaseModel):

@@ -6,6 +6,7 @@ import logging
 
 from ..config.settings import SeriesRunConfig
 from ..schemas.series import BlogResearchPacket, BlogSeriesOutline, BlogSeriesPart
+from ..utils.research import count_urls, extract_source_notes_from_evidence, sanitize_research_meta
 from .base import BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -50,9 +51,10 @@ class BlogResearchAgent(BaseAgent):
             part_title=part.title,
             part_purpose=part.purpose,
             series_context=outline.narrative_arc,
+            deepagent_guidance=self.deepagent_guidance(stage="blog_research", subagent_name="chapter_researcher"),
         )
         return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="blog_research", subagent_name="chapter_researcher"),
             user_prompt=prompt,
             schema=BlogResearchPacket,
         )
@@ -91,11 +93,25 @@ class BlogResearchAgent(BaseAgent):
             f"Do NOT fabricate sources."
         )
         evidence_text = self.context.llm.generate_with_tools(
-            system_prompt=self.grounded_system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(
+                stage="blog_research",
+                subagent_name="chapter_researcher",
+                base_prompt=self.grounded_system_prompt,
+            ),
             user_prompt=search_prompt,
             tools=lc_tools,
             max_iterations=8,
         )
+        if count_urls(evidence_text) < 2:
+            fallback_queries = [
+                f"{config.topic} {part.title} engineering blog",
+                f"{part.title} official documentation",
+                f"{config.topic} {part.title} paper",
+            ]
+            fallback_result = toolkit.research_queries(fallback_queries, fetch_top_n=2)
+            fallback_block = fallback_result.as_context_block()
+            if count_urls(fallback_block) > 0:
+                evidence_text = f"{evidence_text}\n\n### Deterministic Fallback Evidence\n{fallback_block}".strip()
 
         # ── Phase 2: structured synthesis ───────────────────────────────
         synthesis_prompt = self.context.prompts.render(
@@ -106,15 +122,26 @@ class BlogResearchAgent(BaseAgent):
             part_title=part.title,
             part_purpose=part.purpose,
             series_context=outline.narrative_arc,
+            deepagent_guidance=self.deepagent_guidance(stage="blog_research", subagent_name="chapter_researcher"),
         ) + (
             f"\n\n---\n## Live Research Evidence\n\n{evidence_text}\n---\n\n"
             f"Ground your structured output in the evidence above. "
-            f"Extract real source_notes (title, URL, year, source_type). "
+            f"Extract real source_notes / practical_references (title, exact URL, year, source_type). "
             f"Do not invent facts not present in the evidence."
         )
-        return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+        packet = self.context.llm.generate_structured(
+            system_prompt=self.system_prompt_with_deepagent(stage="blog_research", subagent_name="chapter_researcher"),
             user_prompt=synthesis_prompt,
             schema=BlogResearchPacket,
         )
-
+        evidence_sources = extract_source_notes_from_evidence(evidence_text, limit=8)
+        if not packet.practical_references or all(not note.url for note in packet.practical_references):
+            packet.practical_references = evidence_sources or packet.practical_references
+        else:
+            existing_urls = {note.url for note in packet.practical_references if note.url}
+            for note in evidence_sources:
+                if note.url and note.url not in existing_urls:
+                    packet.practical_references.append(note)
+                    existing_urls.add(note.url)
+        packet.summary = sanitize_research_meta(packet.summary, fallback=part.purpose)
+        return packet

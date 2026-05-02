@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 
 from ..config.settings import SeriesRunConfig
-from ..schemas.series import BlogChapterPlan, BlogResearchPacket, SectionResearchPacket
+from ..schemas.series import BlogChapterPlan, BlogResearchPacket, BlogSectionPlan, SectionResearchPacket
+from ..utils.research import count_urls, extract_source_notes_from_evidence, sanitize_research_meta, sanitize_supporting_points
 from ..utils.slug import slugify
 from .base import BaseAgent
 
@@ -85,10 +86,22 @@ class SectionResearchAgent(BaseAgent):
                 blog_research=blog_research,
             )
             evidence_text = self.context.llm.generate_with_tools(
-                system_prompt=self.grounded_system_prompt,
+                system_prompt=self.system_prompt_with_deepagent(
+                    stage="section_research",
+                    subagent_name="section_researcher",
+                    base_prompt=self.grounded_system_prompt,
+                ),
                 user_prompt=search_prompt,
                 tools=lc_tools,
                 max_iterations=6,
+            )
+            evidence_text = self._augment_evidence_if_needed(
+                toolkit=toolkit,
+                config=config,
+                chapter_plan=chapter_plan,
+                section=section,
+                blog_research=blog_research,
+                evidence_text=evidence_text,
             )
 
             # ── Step 2: Structured synthesis from gathered evidence ──────
@@ -100,7 +113,7 @@ class SectionResearchAgent(BaseAgent):
                 evidence_text=evidence_text,
             )
             packet = self.context.llm.generate_structured(
-                system_prompt=self.system_prompt,
+                system_prompt=self.system_prompt_with_deepagent(stage="section_research", subagent_name="section_researcher"),
                 user_prompt=synthesis_prompt,
                 schema=SectionResearchPacket,
             )
@@ -112,6 +125,13 @@ class SectionResearchAgent(BaseAgent):
                 packet.section_heading = section.heading
             if not packet.section_purpose:
                 packet.section_purpose = section.purpose
+            packet = self._repair_packet(
+                packet=packet,
+                section=section,
+                blog_research=blog_research,
+                toolkit=toolkit,
+                evidence_text=evidence_text,
+            )
 
             packets.append(packet)
 
@@ -148,9 +168,10 @@ class SectionResearchAgent(BaseAgent):
                 ]
                 or ["- None"],
                 citation_anchors=blog_research.citation_anchors or ["- None"],
+                deepagent_guidance=self.deepagent_guidance(stage="section_research", subagent_name="section_researcher"),
             )
             packet = self.context.llm.generate_structured(
-                system_prompt=self.system_prompt,
+                system_prompt=self.system_prompt_with_deepagent(stage="section_research", subagent_name="section_researcher"),
                 user_prompt=prompt,
                 schema=SectionResearchPacket,
             )
@@ -189,12 +210,89 @@ class SectionResearchAgent(BaseAgent):
             f"**'{section.heading}'** (Part {chapter_plan.part_number}: {chapter_plan.title}).\n\n"
             f"**Topic:** {config.topic}  |  **Audience:** {config.target_audience}\n"
             f"**Section purpose:** {section.purpose}\n\n"
+            f"---\n## DeepAgent Filesystem Guidance\n\n"
+            f"Use the loaded memory, skills, and section_researcher role from the agent context. "
+            f"Preserve exact URLs, image evidence, and code examples.\n---\n\n"
             f"---\n## Research Evidence Gathered\n\n{evidence_text}\n---\n\n"
             f"Instructions:\n"
-            f"- Extract real source_notes from the evidence (title, URL, year, source_type, credibility).\n"
+            f"- Extract real source_notes from the evidence (title, URL, year, source_type, credibility). Always keep the exact URL when available.\n"
             f"- Write a research_summary grounded in facts actually found above — no invented claims.\n"
             f"- List supporting_points as specific, concrete bullet points from the evidence.\n"
             f"- Set visual_spec to a specific diagram idea motivated by the technical content found.\n"
+            f"- If the evidence includes a usable image, populate image_url, image_credit_url, image_credit_text, and image_alt_text.\n"
+            f"- For implementation-heavy sections, provide one original, syntactically valid code or config example via code_example and set code_example_language/code_example_title/code_example_notes.\n"
             f"- If no credible sources were found for a sub-topic, mark it explicitly.\n"
             f"Return valid JSON matching the SectionResearchPacket schema."
         )
+
+    @staticmethod
+    def _augment_evidence_if_needed(
+        *,
+        toolkit,
+        config: SeriesRunConfig,
+        chapter_plan: BlogChapterPlan,
+        section: BlogSectionPlan,
+        blog_research: BlogResearchPacket,
+        evidence_text: str,
+    ) -> str:
+        if count_urls(evidence_text) >= 2:
+            return evidence_text
+
+        fallback_queries = [
+            f"{config.topic} {chapter_plan.title} {section.heading} engineering blog",
+            f"{section.heading} {config.topic} official documentation",
+            f"{section.heading} {config.topic} paper",
+        ]
+        fallback_result = toolkit.research_queries(fallback_queries, fetch_top_n=2)
+        blocks: list[str] = [evidence_text.strip()] if evidence_text.strip() else []
+        fallback_block = fallback_result.as_context_block()
+        if count_urls(fallback_block) > 0:
+            blocks.append("### Deterministic Fallback Evidence")
+            blocks.append(fallback_block)
+        if blog_research.practical_references:
+            blocks.append("### Chapter-Level References")
+            for note in blog_research.practical_references[:4]:
+                if note.url:
+                    blocks.append(f"- {note.title}\nURL: {note.url}\n{note.note}")
+        return "\n\n".join(block for block in blocks if block.strip())
+
+    @staticmethod
+    def _repair_packet(
+        *,
+        packet: SectionResearchPacket,
+        section: BlogSectionPlan,
+        blog_research: BlogResearchPacket,
+        toolkit,
+        evidence_text: str,
+    ) -> SectionResearchPacket:
+        evidence_sources = extract_source_notes_from_evidence(evidence_text, limit=6)
+        if not packet.source_notes or all(not note.url for note in packet.source_notes):
+            packet.source_notes = evidence_sources or [
+                note for note in blog_research.practical_references if note.url
+            ][:4] or blog_research.practical_references[:4]
+        else:
+            existing_urls = {note.url for note in packet.source_notes if note.url}
+            for note in evidence_sources:
+                if note.url and note.url not in existing_urls:
+                    packet.source_notes.append(note)
+                    existing_urls.add(note.url)
+
+        packet.research_summary = sanitize_research_meta(
+            packet.research_summary,
+            fallback=section.purpose,
+        )
+        packet.supporting_points = sanitize_supporting_points(packet.supporting_points)
+
+        if not packet.image_url:
+            for note in packet.source_notes:
+                if not note.url:
+                    continue
+                page = toolkit.fetch(note.url)
+                if page.success and page.image_url:
+                    packet.image_url = page.image_url
+                    packet.image_credit_url = note.url
+                    packet.image_credit_text = note.title
+                    packet.image_alt_text = page.image_alt_text or section.heading
+                    break
+
+        return packet

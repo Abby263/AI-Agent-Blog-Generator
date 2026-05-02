@@ -50,13 +50,29 @@ LangGraph is used for the stateful parts of the workflow where routing matters:
 
 The service layer handles run manifests, disk persistence, cross-part aggregation, API/dashboard integration, and auditable memory retrieval.
 
+## DeepAgents-Style Profile
+
+The pipeline now follows the same filesystem-primitives pattern as the
+LangChain DeepAgents content-builder example:
+
+- `src/blog_series_agent/deepagent/AGENTS.md` contains always-on writing memory, voice, and completion criteria.
+- `src/blog_series_agent/deepagent/skills/*/SKILL.md` contains reusable workflows loaded by stage, such as series planning, section grounding, visuals, and code examples.
+- `src/blog_series_agent/deepagent/subagents.yaml` declares the topic researcher, chapter researcher, section researcher, writer, and reviewer roles.
+
+These files do not replace LangGraph. They are loaded by `DeepAgentProfileLoader`
+and injected explicitly into the relevant research, planning, writing, review,
+improvement, and asset prompts. This keeps guidance visible and auditable: the
+agent receives named filesystem guidance instead of hidden prompt mutation.
+
 ## Blog Authoring Flow
 
 Each blog is now generated in three explicit stages:
 
 - series architect decides the ordered list of blog chapters
 - per-blog chapter planner creates a `blog_plans/Part-X-...-plan.{json,md}` artifact with the table of contents and section targets
+- section research gathers evidence for each planned section, preserving exact source links, source-image metadata when available, and implementation examples
 - section writer makes multiple LLM calls, one per planned section, before assembling the full Markdown article
+- section improver revises each section, preserving clickable sources, image credits, and syntactically valid code/config blocks
 
 This keeps generation inspectable and makes it easier to enforce chapter structure and minimum article length.
 
@@ -70,6 +86,8 @@ It checks for:
 - missing mandatory chapter sections
 - placeholder or fake visual markers such as `example.com` links
 - weak references
+- embedded images without nearby clickable credit links
+- missing code/config examples in implementation-heavy sections
 
 These findings are passed explicitly into the reviewer and improver prompts, persisted into blog evaluations, and surfaced in score penalties so the system does not over-credit shallow but well-formatted drafts.
 

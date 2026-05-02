@@ -28,6 +28,7 @@ from ..schemas.series import BlogSeriesOutline, BlogSeriesPart
 from ..services.approval_service import ApprovalService
 from ..services.artifact_service import ArtifactService
 from ..services.content_lint import ContentLintService
+from ..services.deepagent_profile import DeepAgentProfileLoader
 from ..services.evaluation_service import EvaluationService
 from ..services.memory_service import MemoryService
 from ..services.observability import ObservabilityService
@@ -428,7 +429,13 @@ class PipelineService:
                 enabled=True,
             )
             logger.info("Research toolkit enabled (web search + URL fetch).")
-        agent_context = AgentContext(llm=llm, prompts=self.prompt_loader, research_toolkit=toolkit)
+        deepagent_profile = DeepAgentProfileLoader().load()
+        agent_context = AgentContext(
+            llm=llm,
+            prompts=self.prompt_loader,
+            research_toolkit=toolkit,
+            deepagent_profile=deepagent_profile,
+        )
         return GraphContext(
             artifact_service=self.artifact_service,
             approval_service=self.approval_service,

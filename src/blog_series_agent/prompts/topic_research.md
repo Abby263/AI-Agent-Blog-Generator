@@ -4,6 +4,9 @@ Topic: $topic
 Target audience: $audience
 Desired number of parts: $num_parts
 
+DeepAgent filesystem guidance:
+$deepagent_guidance
+
 Produce a structured research dossier that:
 - identifies modern concepts, tradeoffs, terminology, and production practices
 - captures recent developments that matter to a technical reader

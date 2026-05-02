@@ -8,6 +8,9 @@ Part purpose: $part_purpose
 Series context:
 $series_context
 
+DeepAgent filesystem guidance:
+$deepagent_guidance
+
 Create targeted notes for a writer. Include examples, system design insights, and practical references that support deep technical writing.
 
 Source-grounding requirements:

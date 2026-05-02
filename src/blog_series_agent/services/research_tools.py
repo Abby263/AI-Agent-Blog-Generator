@@ -34,6 +34,8 @@ class FetchedPage:
     text: str
     word_count: int
     success: bool
+    image_url: str | None = None
+    image_alt_text: str = ""
     error: str = ""
 
 
@@ -59,6 +61,10 @@ class ResearchToolResult:
             for page in self.fetched_pages:
                 if page.success:
                     lines.append(f"**{page.title}** ({page.url})")
+                    if page.image_url:
+                        lines.append(f"Primary image URL: {page.image_url}")
+                        if page.image_alt_text:
+                            lines.append(f"Image alt text: {page.image_alt_text}")
                     lines.append(page.text[:3000])
                     lines.append("")
                 else:
@@ -115,7 +121,7 @@ def fetch_page_text(url: str, max_chars: int = 5000) -> FetchedPage:
         }
         resp = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, "html.parser")
 
         # Remove navigation, scripts, styles, ads
         for tag in soup(["script", "style", "nav", "header", "footer", "aside", "form"]):
@@ -124,6 +130,18 @@ def fetch_page_text(url: str, max_chars: int = 5000) -> FetchedPage:
         # Prefer <article>, <main>, or <body>
         content_tag = soup.find("article") or soup.find("main") or soup.body
         raw_text = content_tag.get_text(separator="\n") if content_tag else soup.get_text(separator="\n")
+        image_url = _extract_primary_image(soup, url)
+        image_alt_text = ""
+        if image_url:
+            image_tag = soup.find("meta", attrs={"property": "og:image:alt"}) or soup.find(
+                "meta", attrs={"name": "twitter:image:alt"}
+            )
+            if image_tag is not None:
+                image_alt_text = image_tag.get("content", "").strip()
+            if not image_alt_text:
+                first_img = soup.find("img", src=True)
+                if first_img is not None:
+                    image_alt_text = first_img.get("alt", "").strip()
 
         # Normalize whitespace
         lines = [ln.strip() for ln in raw_text.splitlines()]
@@ -147,6 +165,8 @@ def fetch_page_text(url: str, max_chars: int = 5000) -> FetchedPage:
             text=text,
             word_count=len(text.split()),
             success=True,
+            image_url=image_url,
+            image_alt_text=image_alt_text,
         )
 
     except Exception as exc:
@@ -157,6 +177,8 @@ def fetch_page_text(url: str, max_chars: int = 5000) -> FetchedPage:
             text="",
             word_count=0,
             success=False,
+            image_url=None,
+            image_alt_text="",
             error=str(exc),
         )
 
@@ -261,7 +283,14 @@ class ResearchToolkit:
             page = toolkit.fetch(url)
             if not page.success:
                 return f"Could not fetch {url}: {page.error}"
-            return f"Title: {page.title}\nURL: {url}\n\n{page.text}"
+            lines = [f"Title: {page.title}", f"URL: {url}"]
+            if page.image_url:
+                lines.append(f"Primary image URL: {page.image_url}")
+                lines.append(f"Image credit page: {page.url}")
+                if page.image_alt_text:
+                    lines.append(f"Image alt text: {page.image_alt_text}")
+            lines.extend(["", page.text])
+            return "\n".join(lines)
 
         return [
             StructuredTool.from_function(
@@ -328,3 +357,33 @@ def _is_fetchable(url: str) -> bool:
     skip_domains = ("youtube.com", "twitter.com", "x.com", "linkedin.com", "facebook.com")
     domain = _domain(lower)
     return not any(skip in domain for skip in skip_domains)
+
+
+def _extract_primary_image(soup, page_url: str) -> str | None:  # noqa: ANN001
+    """Extract the strongest candidate image URL from a fetched HTML document."""
+    candidates = [
+        soup.find("meta", attrs={"property": "og:image"}),
+        soup.find("meta", attrs={"name": "twitter:image"}),
+    ]
+    for tag in candidates:
+        if tag is None:
+            continue
+        content = (tag.get("content") or "").strip()
+        if content.startswith("http"):
+            return content
+
+    first_img = soup.find("img", src=True)
+    if first_img is None:
+        return None
+    src = (first_img.get("src") or "").strip()
+    if not src:
+        return None
+    if src.startswith("http"):
+        return src
+    if src.startswith("//"):
+        return f"https:{src}"
+    if src.startswith("/"):
+        base_match = re.match(r"(https?://[^/]+)", page_url)
+        if base_match:
+            return f"{base_match.group(1)}{src}"
+    return None

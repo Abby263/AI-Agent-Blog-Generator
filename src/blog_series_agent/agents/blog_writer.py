@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import textwrap
+
 from ..config.settings import SeriesRunConfig
 from ..schemas.memory import SkillRetrievalResult
 from ..schemas.series import (
@@ -15,6 +17,7 @@ from ..schemas.series import (
     SectionResearchPacket,
 )
 from ..utils.markdown import normalize_markdown_document
+from ..utils.research import sanitize_research_meta
 from ..utils.slug import slugify
 from .base import BaseAgent
 
@@ -84,15 +87,26 @@ class BlogWriterAgent(BaseAgent):
                 ]
                 or ["None"],
                 citation_anchors=research.citation_anchors or ["None"],
+                source_links=self._source_links(section_research),
                 active_skills=retrieved_guidance.retrieved_guidance or ["- None"],
                 recent_mistakes=recent_mistakes_to_avoid or ["- None"],
+                deepagent_guidance=self.deepagent_guidance(stage="draft", subagent_name="writer"),
                 completed_sections=completed_sections or ["- None"],
                 visual_requirement="Yes" if section.requires_visual else "No",
                 visual_spec=section_research.visual_spec or "Add one purposeful visual for this section.",
+                image_url=section_research.image_url or "None",
+                image_credit_url=section_research.image_credit_url or "None",
+                image_credit_text=section_research.image_credit_text or "None",
+                image_alt_text=section_research.image_alt_text or "None",
+                code_required="Yes" if self._requires_code_example(section.heading) else "No",
+                code_example_title=section_research.code_example_title or "None",
+                code_example_language=section_research.code_example_language or "None",
+                code_example=section_research.code_example or "None",
+                code_example_notes=section_research.code_example_notes or "None",
                 supporting_points=section_research.supporting_points or ["None"],
             )
             output = self.context.llm.generate_text(
-                system_prompt=self.system_prompt,
+                system_prompt=self.system_prompt_with_deepagent(stage="draft", subagent_name="writer"),
                 user_prompt=prompt,
                 max_tokens=max(180, min(700, int(section_max_words * 1.8))),
             )
@@ -203,7 +217,7 @@ class BlogWriterAgent(BaseAgent):
         section: BlogSectionPlan,
         section_research: SectionResearchPacket,
     ) -> str:
-        body = markdown.strip()
+        body = BlogWriterAgent._strip_meta_boilerplate(markdown.strip())
         if not body.startswith("#"):
             body = f"## {section.heading}\n\n{body}"
         if len(body.split()) < 80:
@@ -214,18 +228,20 @@ class BlogWriterAgent(BaseAgent):
                 section_research=section_research,
             )
 
-        if "[Image:" not in body:
-            visual_spec = section_research.visual_spec or (
-                f"[Image: A diagram for {section.heading} that explains the main mechanism, key tradeoffs, and what the reader should notice.]"
-            )
-            if not visual_spec.startswith("[Image:"):
-                visual_spec = f"[Image: {visual_spec}]"
-            body = f"{body}\n\n{visual_spec}"
+        if "![" not in body and "[Image:" not in body:
+            body = f"{body}\n\n{BlogWriterAgent._render_visual_block(section.heading, section_research)}"
+
+        if BlogWriterAgent._requires_code_example(section.heading) and not BlogWriterAgent._has_code_block(body):
+            body = f"{body}\n\n{BlogWriterAgent._render_code_block(section.heading, section_research)}"
+
+        if "![" in body and "_Image credit:" not in body and section_research.image_url:
+            body = f"{body}\n\n_Image credit: [{section_research.image_credit_text or 'Source'}]({section_research.image_credit_url or section_research.image_url})_"
 
         if "Sources for This Section" not in body:
             lines = ["#### Sources for This Section"]
             for note in section_research.source_notes:
-                descriptor = f"{note.title} ({note.source_type}"
+                title = f"[{note.title}]({note.url})" if note.url else note.title
+                descriptor = f"{title} ({note.source_type}"
                 if note.year:
                     descriptor += f", {note.year}"
                 descriptor += ")"
@@ -233,6 +249,11 @@ class BlogWriterAgent(BaseAgent):
             if len(lines) == 1:
                 lines.append("- No explicit sources were captured for this section.")
             body = f"{body}\n\n" + "\n".join(lines)
+        elif section_research.source_notes and not any((note.url and note.url in body) for note in section_research.source_notes):
+            body = f"{body}\n" + "\n".join(
+                f"- [{note.title}]({note.url})" if note.url else f"- {note.title}"
+                for note in section_research.source_notes
+            )
         return body.strip()
 
     @staticmethod
@@ -244,7 +265,11 @@ class BlogWriterAgent(BaseAgent):
         section_research: SectionResearchPacket,
     ) -> str:
         fallback_paragraphs = [
-            section_research.research_summary.strip() or section_purpose.strip() or f"This section explains {heading.lower()} in practical system-design terms.",
+            sanitize_research_meta(
+                section_research.research_summary.strip(),
+                fallback=section_purpose.strip()
+                or f"This section explains {heading.lower()} in practical system-design terms.",
+            ),
         ]
         for point in section_research.supporting_points[:4]:
             point = point.strip().rstrip(".")
@@ -255,3 +280,106 @@ class BlogWriterAgent(BaseAgent):
             _, _, remainder = markdown.partition("\n")
             return f"## {heading}\n\n{fallback_body}\n{remainder}".strip()
         return f"## {heading}\n\n{fallback_body}\n\n{markdown}".strip()
+
+    @staticmethod
+    def _strip_meta_boilerplate(markdown: str) -> str:
+        paragraphs = [segment.strip() for segment in markdown.split("\n\n")]
+        cleaned: list[str] = []
+        for paragraph in paragraphs:
+            if (
+                paragraph.startswith("#")
+                or paragraph.startswith("```")
+                or paragraph.startswith("![")
+                or paragraph.startswith("[Image:")
+                or paragraph.startswith("#### Sources for This Section")
+            ):
+                cleaned.append(paragraph)
+                continue
+            sanitized = sanitize_research_meta(paragraph)
+            if sanitized:
+                cleaned.append(sanitized)
+        return "\n\n".join(cleaned).strip()
+
+    @staticmethod
+    def _source_links(section_research: SectionResearchPacket) -> list[str]:
+        if not section_research.source_notes:
+            return ["None"]
+        return [
+            f"{note.title}: {note.url}" if note.url else f"{note.title}: no URL available"
+            for note in section_research.source_notes
+        ]
+
+    @staticmethod
+    def _render_visual_block(heading: str, section_research: SectionResearchPacket) -> str:
+        if section_research.image_url:
+            alt = section_research.image_alt_text or heading
+            credit_text = section_research.image_credit_text or "Source"
+            credit_url = section_research.image_credit_url or section_research.image_url
+            return "\n".join(
+                [
+                    f"![{alt}]({section_research.image_url})",
+                    f"_Image credit: [{credit_text}]({credit_url})_",
+                ]
+            )
+        visual_spec = section_research.visual_spec or (
+            f"[Image: A diagram for {heading} that explains the main mechanism, key tradeoffs, and what the reader should notice.]"
+        )
+        if not visual_spec.startswith("[Image:"):
+            visual_spec = f"[Image: {visual_spec}]"
+        return visual_spec
+
+    @staticmethod
+    def _requires_code_example(heading: str) -> bool:
+        normalized = heading.strip().lower()
+        return normalized in {
+            "detailed core sections",
+            "system / architecture thinking",
+            "how this works in modern systems",
+            "real-world examples",
+        }
+
+    @staticmethod
+    def _has_code_block(markdown: str) -> bool:
+        return "```" in markdown
+
+    @staticmethod
+    def _render_code_block(heading: str, section_research: SectionResearchPacket) -> str:
+        if section_research.code_example:
+            language = section_research.code_example_language or "text"
+            title = section_research.code_example_title or f"{heading} example"
+            notes = section_research.code_example_notes or "Illustrative example grounded in the section research."
+            return "\n".join(
+                [
+                    f"**{title}**",
+                    f"```{language}",
+                    section_research.code_example.strip(),
+                    "```",
+                    notes,
+                ]
+            )
+
+        fallback = textwrap.dedent(
+            """
+            monitoring_rule:
+              name: section_monitor
+              window: 1h
+              baseline: 7d
+              checks:
+                - metric: distribution_shift
+                  threshold: 0.20
+                - metric: missing_value_rate
+                  threshold: 0.05
+              notify:
+                severity: medium
+                channel: oncall-ml
+            """
+        ).strip()
+        return "\n".join(
+            [
+                "**Example monitoring configuration**",
+                "```yaml",
+                fallback,
+                "```",
+                "This config is a syntactically valid starting point that the reader can adapt to the section's operational pattern.",
+            ]
+        )

@@ -24,6 +24,8 @@ class OpenAICompatibleLLMClient(BaseLLMClient):
             max_tokens=config.max_tokens,
             api_key=api_key,
             base_url=api_base or config.api_base,
+            request_timeout=120,   # 2-minute hard timeout per API call
+            max_retries=2,         # fail fast rather than retry for 90+ minutes
         )
 
     def generate_text(

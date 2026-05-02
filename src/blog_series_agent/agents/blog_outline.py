@@ -59,9 +59,10 @@ class BlogOutlineAgent(BaseAgent):
             series_navigation=series_navigation,
             research_summary=research.summary,
             active_skills=retrieved_guidance.retrieved_guidance or ["- None"],
+            deepagent_guidance=self.deepagent_guidance(stage="blog_outline", subagent_name="writer"),
         )
         plan = self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="blog_outline", subagent_name="writer"),
             user_prompt=prompt,
             schema=BlogChapterPlan,
         )

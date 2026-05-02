@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import json
 import re
 
 from ..config.settings import SeriesRunConfig
@@ -58,13 +60,21 @@ class ContentLintService:
         missing_sections = [section for section in self.REQUIRED_SECTION_PATTERNS if section not in lowered]
         placeholder_visuals = sorted({match for match in self.PLACEHOLDER_PATTERNS if match in lowered})
 
+        unresolved_image_blocks = self._detect_unresolved_image_blocks(markdown)
+
         # Detect fake image URLs via regex patterns
         fake_image_urls = self._detect_fake_image_urls(markdown)
         if fake_image_urls:
             placeholder_visuals = sorted(set(placeholder_visuals) | set(fake_image_urls))
+        if unresolved_image_blocks:
+            placeholder_visuals = sorted(set(placeholder_visuals) | set(unresolved_image_blocks))
 
         weak_references = self._weak_reference_findings(markdown)
         ungrouped_reference_issues = self._reference_quality_findings(markdown)
+        duplicate_images = self._detect_duplicate_image_blocks(markdown)
+        fake_authors = self._detect_fake_authors(markdown)
+        image_credit_issues = self._image_credit_issues(markdown)
+        code_issues = self._code_block_issues(markdown)
 
         findings: list[ContentLintFinding] = []
         if word_count < config.min_word_count:
@@ -112,6 +122,42 @@ class ContentLintService:
                     recommended_action="Ensure references include titles, authors/orgs, and are verifiable. Remove invented URLs.",
                 )
             )
+        if duplicate_images:
+            findings.append(
+                ContentLintFinding(
+                    finding_type="duplicate_image_blocks",
+                    severity=EvaluationSeverity.MEDIUM,
+                    message=f"Found {len(duplicate_images)} duplicate or near-duplicate [Image: ...] block(s). Each visual must be unique.",
+                    recommended_action="Remove duplicate [Image: ...] blocks. Each section must have a distinct visual, or no visual at all.",
+                )
+            )
+        if fake_authors:
+            findings.append(
+                ContentLintFinding(
+                    finding_type="fake_author_names",
+                    severity=EvaluationSeverity.HIGH,
+                    message=f"References contain likely invented author names: {', '.join(fake_authors[:5])}.",
+                    recommended_action="Replace invented author names with real organization names (e.g., 'Netflix Engineering Blog') or remove the reference.",
+                )
+            )
+        if image_credit_issues:
+            findings.append(
+                ContentLintFinding(
+                    finding_type="missing_image_credits",
+                    severity=EvaluationSeverity.HIGH,
+                    message=f"Found image credit issues: {'; '.join(image_credit_issues)}.",
+                    recommended_action="Every embedded image must include a clickable image credit line.",
+                )
+            )
+        if code_issues:
+            findings.append(
+                ContentLintFinding(
+                    finding_type="code_example_issues",
+                    severity=EvaluationSeverity.MEDIUM,
+                    message=f"Code example issues: {'; '.join(code_issues)}.",
+                    recommended_action="Add syntactically valid, runnable code/config examples to implementation-heavy sections.",
+                )
+            )
 
         return ContentLintReport(
             word_count=word_count,
@@ -144,40 +190,57 @@ class ContentLintService:
                     )
                 )
 
-        # Check for residual markdown image syntax that should have been replaced
-        image_pattern = re.compile(r"!\[.*?\]\(https?://[^\)]+\)")
-        image_matches = image_pattern.findall(markdown)
-        if image_matches:
+        # Check for unresolved placeholder image blocks in final artifacts
+        unresolved_images = self._detect_unresolved_image_blocks(markdown)
+        if unresolved_images:
             report.findings.append(
                 ContentLintFinding(
-                    finding_type="residual_image_urls",
+                    finding_type="unresolved_image_placeholders",
                     severity=EvaluationSeverity.HIGH,
-                    message=f"Final artifact still contains {len(image_matches)} Markdown image URL(s). These should be [Image: ...] blocks.",
-                    recommended_action="Replace all ![alt](url) patterns with [Image: description] blocks.",
+                    message=f"Final artifact still contains placeholder image blocks: {', '.join(unresolved_images)}.",
+                    recommended_action="Replace placeholder image blocks with real source images plus credit lines, or provide a much more specific asset spec.",
                 )
             )
-            report.placeholder_visuals = sorted(set(report.placeholder_visuals) | {"residual markdown image URLs"})
+            report.placeholder_visuals = sorted(set(report.placeholder_visuals) | set(unresolved_images))
 
-        # Check that key sections have substantive content (not just headers)
+        image_credit_issues = self._image_credit_issues(markdown)
+        if image_credit_issues:
+            report.findings.append(
+                ContentLintFinding(
+                    finding_type="missing_image_credits",
+                    severity=EvaluationSeverity.HIGH,
+                    message=f"Embedded image credit issues: {'; '.join(image_credit_issues)}.",
+                    recommended_action="Add a clickable image credit line for every embedded image.",
+                )
+            )
+
+        # Check that key sections have substantive content (not just headers).
+        # Only look for the section at actual heading markers (lines starting with #), not in TOC.
         critical_sections = ["introduction", "key takeaways", "conclusion"]
         for section in critical_sections:
-            idx = lowered.find(section)
-            if idx != -1:
-                # Check the content after the section header
-                section_end = lowered.find("\n#", idx + len(section))
-                if section_end == -1:
-                    section_end = len(markdown)
-                section_content = markdown[idx:section_end].strip()
-                section_words = len(section_content.split())
-                if section_words < 30:
-                    report.findings.append(
-                        ContentLintFinding(
-                            finding_type="thin_section",
-                            severity=EvaluationSeverity.MEDIUM,
-                            message=f"Section '{section}' has only {section_words} words. It may be too thin.",
-                            recommended_action=f"Expand the '{section}' section with more substantive content.",
-                        )
+            # Find a line that starts with # and contains the section name — skip TOC entries
+            heading_match = re.search(
+                r"^#{1,3}\s+" + re.escape(section),
+                lowered,
+                re.MULTILINE,
+            )
+            if heading_match is None:
+                continue
+            idx = heading_match.start()
+            # Find end: next heading of same or higher level
+            section_end = re.search(r"^#{1,3}\s+", lowered[idx + 1:], re.MULTILINE)
+            end_pos = (idx + 1 + section_end.start()) if section_end else len(markdown)
+            section_content = markdown[idx:end_pos].strip()
+            section_words = len(section_content.split())
+            if section_words < 30:
+                report.findings.append(
+                    ContentLintFinding(
+                        finding_type="thin_section",
+                        severity=EvaluationSeverity.MEDIUM,
+                        message=f"Section '{section}' has only {section_words} words. It may be too thin.",
+                        recommended_action=f"Expand the '{section}' section with more substantive content.",
                     )
+                )
 
         return report
 
@@ -254,6 +317,127 @@ class ContentLintService:
         report.strengths = list(dict.fromkeys(strengths))
         report.scorecard = scorecard
         return report
+
+    @staticmethod
+    def _detect_duplicate_image_blocks(markdown: str) -> list[str]:
+        """Find [Image: ...] blocks with near-identical descriptions (deduplication signal)."""
+        import re as _re
+        blocks = _re.findall(r"\[Image:\s*([^\]]+)\]", markdown, _re.IGNORECASE)
+        if len(blocks) <= 1:
+            return []
+
+        def _normalise(s: str) -> str:
+            # Lower-case, strip punctuation, collapse whitespace
+            s = s.lower()
+            s = _re.sub(r"[^a-z0-9\s]", " ", s)
+            return " ".join(s.split())
+
+        seen: list[str] = []
+        duplicates: list[str] = []
+        for block in blocks:
+            norm = _normalise(block)
+            # Check if this block is substantially similar to any we have already seen
+            for prior in seen:
+                # Jaccard similarity on word sets
+                a = set(norm.split())
+                b = set(prior.split())
+                if not a or not b:
+                    continue
+                jaccard = len(a & b) / len(a | b)
+                if jaccard >= 0.6:  # 60%+ word overlap → near-duplicate
+                    duplicates.append(block[:80])
+                    break
+            else:
+                seen.append(norm)
+        return duplicates
+
+    @staticmethod
+    def _detect_unresolved_image_blocks(markdown: str) -> list[str]:
+        blocks = re.findall(r"\[Image:\s*([^\]]+)\]", markdown, re.IGNORECASE)
+        return [block[:80] for block in blocks]
+
+    @staticmethod
+    def _image_credit_issues(markdown: str) -> list[str]:
+        issues: list[str] = []
+        lines = markdown.splitlines()
+        image_pattern = re.compile(r"!\[[^\]]*\]\((https?://[^\)]+)\)")
+        for index, line in enumerate(lines):
+            if image_pattern.search(line) is None:
+                continue
+            window = "\n".join(lines[index + 1:index + 4])
+            if re.search(r"_Image credit:\s+\[[^\]]+\]\((https?://[^\)]+)\)_", window) is None:
+                issues.append(f"embedded image on line {index + 1} is missing a clickable credit line")
+        return issues
+
+    def _code_block_issues(self, markdown: str) -> list[str]:
+        issues: list[str] = []
+        code_blocks = self._extract_code_blocks(markdown)
+        implementation_sections = [
+            "detailed core sections",
+            "system / architecture thinking",
+            "how this works in modern systems",
+            "real-world examples",
+        ]
+        lowered = markdown.lower()
+        if any(section in lowered for section in implementation_sections) and not code_blocks:
+            issues.append("implementation-heavy article has no fenced code/config example")
+            return issues
+
+        for language, code in code_blocks:
+            lang = (language or "").strip().lower()
+            stripped = code.strip()
+            if not stripped:
+                issues.append("empty fenced code block detected")
+                continue
+            if lang in {"python", "py"}:
+                try:
+                    ast.parse(stripped)
+                except SyntaxError as exc:
+                    issues.append(f"python code block has syntax error: {exc.msg}")
+            elif lang == "json":
+                try:
+                    json.loads(stripped)
+                except json.JSONDecodeError as exc:
+                    issues.append(f"json code block is invalid: {exc.msg}")
+            elif lang in {"yaml", "yml"}:
+                try:
+                    import yaml
+
+                    yaml.safe_load(stripped)
+                except Exception as exc:  # noqa: BLE001
+                    issues.append(f"yaml code block is invalid: {exc}")
+        return issues
+
+    @staticmethod
+    def _extract_code_blocks(markdown: str) -> list[tuple[str, str]]:
+        return re.findall(r"```([a-zA-Z0-9_-]*)\n(.*?)```", markdown, re.DOTALL)
+
+    # Known placeholder / generic first-name+last-name patterns used by LLMs when fabricating references
+    _FAKE_AUTHOR_RE = re.compile(
+        r"\b(john doe|jane doe|jane smith|john smith|"
+        r"smith,\s*j\.|doe,\s*a\.|johnson,\s*l\.|brown,\s*r\.|harris,\s*j\.|"
+        r"gonzalez,\s*[a-z]\.|cheng,\s*a\.|lee,\s*a\.|jones,\s*r\.)\b",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _detect_fake_authors(cls, markdown: str) -> list[str]:
+        """Return a list of likely-fabricated author strings found in the references section."""
+        lower = markdown.lower()
+        ref_start = lower.rfind("# references")
+        if ref_start == -1:
+            ref_start = lower.rfind("## references")
+        search_zone = markdown[ref_start:] if ref_start != -1 else markdown
+        matches = cls._FAKE_AUTHOR_RE.findall(search_zone)
+        # De-duplicate, preserve order
+        seen: set[str] = set()
+        result: list[str] = []
+        for m in matches:
+            key = m.lower()
+            if key not in seen:
+                seen.add(key)
+                result.append(m)
+        return result
 
     def _detect_fake_image_urls(self, markdown: str) -> list[str]:
         """Detect fake image URLs using regex patterns."""

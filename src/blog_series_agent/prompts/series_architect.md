@@ -6,6 +6,9 @@ Desired number of parts: $num_parts
 Research dossier summary:
 $research_summary
 
+DeepAgent filesystem guidance:
+$deepagent_guidance
+
 Design a book-like series outline with progressive depth and minimal overlap.
 Each part should include purpose, prerequisites, key concepts, diagrams, and dependency links to earlier parts.
 

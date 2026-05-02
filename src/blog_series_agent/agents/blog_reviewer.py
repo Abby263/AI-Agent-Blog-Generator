@@ -35,9 +35,10 @@ class BlogReviewerAgent(BaseAgent):
             active_skills=retrieved_guidance.retrieved_guidance or ["- None"],
             active_skill_ids=retrieved_guidance.retrieved_skill_ids or ["- None"],
             lint_findings=lint_summary,
+            deepagent_guidance=self.deepagent_guidance(stage="review", subagent_name="reviewer"),
         )
         report = self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="review", subagent_name="reviewer"),
             user_prompt=prompt,
             schema=BlogReviewReport,
         )

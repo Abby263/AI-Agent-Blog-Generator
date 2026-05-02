@@ -39,7 +39,7 @@ class _FakeLLM:
         raise NotImplementedError
 
 
-def test_blog_writer_adds_sources_and_images_per_section() -> None:
+def test_blog_writer_adds_sources_images_links_and_code_per_section() -> None:
     writer = BlogWriterAgent(
         AgentContext(
             llm=_FakeLLM(),
@@ -82,6 +82,7 @@ def test_blog_writer_adds_sources_and_images_per_section() -> None:
             SourceNote(
                 title="Hidden Technical Debt in Machine Learning Systems",
                 source_type="paper",
+                url="https://research.google/pubs/pub43146/",
                 year=2015,
                 note="Foundational production ML paper.",
             )
@@ -93,16 +94,24 @@ def test_blog_writer_adds_sources_and_images_per_section() -> None:
         title=part.title,
         subtitle="Why production ML is a systems problem.",
         chapter_summary="Summary",
-        section_plans=[BlogSectionPlan(heading="Introduction", purpose="Open strongly.", requires_visual=True)],
+        section_plans=[BlogSectionPlan(heading="Detailed Core Sections", purpose="Open strongly.", requires_visual=True)],
     )
     section_research = [
         SectionResearchPacket(
-            section_heading="Introduction",
-            section_slug="introduction",
+            section_heading="Detailed Core Sections",
+            section_slug="detailed-core-sections",
             section_purpose="Open strongly.",
             research_summary="Use a systems framing.",
             source_notes=research.practical_references,
             visual_spec="A simple lifecycle diagram showing data, training, and serving feedback loops.",
+            image_url="https://example.org/diagram.png",
+            image_credit_url="https://example.org/article",
+            image_credit_text="Example Engineering",
+            image_alt_text="System lifecycle diagram",
+            code_example_title="Minimal monitoring rule",
+            code_example_language="yaml",
+            code_example="threshold: 0.2\nwindow: 1h",
+            code_example_notes="Valid YAML example.",
         )
     ]
 
@@ -130,7 +139,9 @@ def test_blog_writer_adds_sources_and_images_per_section() -> None:
 
     assert package.section_drafts
     section_markdown = package.section_drafts[0].markdown
-    assert "[Image:" in section_markdown
+    assert "![System lifecycle diagram](https://example.org/diagram.png)" in section_markdown
+    assert "_Image credit: [Example Engineering](https://example.org/article)_" in section_markdown
     assert "Sources for This Section" in section_markdown
-    assert "Hidden Technical Debt in Machine Learning Systems" in section_markdown
+    assert "[Hidden Technical Debt in Machine Learning Systems](https://research.google/pubs/pub43146/)" in section_markdown
     assert "Use a systems framing." in section_markdown
+    assert "```yaml" in section_markdown

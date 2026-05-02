@@ -24,6 +24,9 @@ $research_summary
 Retrieved approved skills:
 $active_skills
 
+DeepAgent filesystem guidance:
+$deepagent_guidance
+
 Plan a chapter that feels like a book chapter, not a listicle.
 
 You must produce:

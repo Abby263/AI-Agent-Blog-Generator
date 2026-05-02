@@ -6,6 +6,7 @@ import logging
 
 from ..config.settings import SeriesRunConfig
 from ..schemas.series import TopicResearchDossier
+from ..utils.research import count_urls, extract_source_notes_from_evidence
 from .base import BaseAgent
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,10 @@ class TopicResearchAgent(BaseAgent):
             topic=config.topic,
             audience=config.target_audience,
             num_parts=config.num_parts,
+            deepagent_guidance=self.deepagent_guidance(stage="topic_research", subagent_name="topic_researcher"),
         )
         return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="topic_research", subagent_name="topic_researcher"),
             user_prompt=prompt,
             schema=TopicResearchDossier,
         )
@@ -71,11 +73,25 @@ class TopicResearchAgent(BaseAgent):
             f"Do not fabricate any sources."
         )
         evidence_text = self.context.llm.generate_with_tools(
-            system_prompt=self.grounded_system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(
+                stage="topic_research",
+                subagent_name="topic_researcher",
+                base_prompt=self.grounded_system_prompt,
+            ),
             user_prompt=search_prompt,
             tools=lc_tools,
             max_iterations=10,
         )
+        if count_urls(evidence_text) < 3:
+            fallback_queries = [
+                f"{config.topic} engineering blog",
+                f"{config.topic} official documentation",
+                f"{config.topic} paper",
+            ]
+            fallback_result = toolkit.research_queries(fallback_queries, fetch_top_n=3)
+            fallback_block = fallback_result.as_context_block()
+            if count_urls(fallback_block) > 0:
+                evidence_text = f"{evidence_text}\n\n### Deterministic Fallback Evidence\n{fallback_block}".strip()
 
         # ── Phase 2: structured synthesis ───────────────────────────────
         synthesis_prompt = self.context.prompts.render(
@@ -83,6 +99,7 @@ class TopicResearchAgent(BaseAgent):
             topic=config.topic,
             audience=config.target_audience,
             num_parts=config.num_parts,
+            deepagent_guidance=self.deepagent_guidance(stage="topic_research", subagent_name="topic_researcher"),
         ) + (
             f"\n\n---\n## Live Research Evidence\n\n{evidence_text}\n---\n\n"
             f"Use the evidence above to populate your dossier. "
@@ -90,9 +107,12 @@ class TopicResearchAgent(BaseAgent):
             f"All claims about current state, benchmarks, or production systems must come from the evidence. "
             f"If the evidence does not cover a required field, mark it as 'not found in search results'."
         )
-        return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+        dossier = self.context.llm.generate_structured(
+            system_prompt=self.system_prompt_with_deepagent(stage="topic_research", subagent_name="topic_researcher"),
             user_prompt=synthesis_prompt,
             schema=TopicResearchDossier,
         )
-
+        evidence_sources = extract_source_notes_from_evidence(evidence_text, limit=10)
+        if not dossier.source_notes or all(not note.url for note in dossier.source_notes):
+            dossier.source_notes = evidence_sources or dossier.source_notes
+        return dossier

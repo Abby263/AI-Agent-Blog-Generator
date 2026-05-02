@@ -16,6 +16,11 @@ from ..schemas.series import (
 )
 
 
+def _format_source_markdown(title: str, url: str | None, suffix: str = "") -> str:
+    label = f"[{title}]({url})" if url else title
+    return f"{label}{suffix}"
+
+
 def render_topic_research_markdown(dossier: TopicResearchDossier) -> str:
     return "\n".join(
         [
@@ -37,8 +42,8 @@ def render_topic_research_markdown(dossier: TopicResearchDossier) -> str:
             "",
             "## Source Notes",
             *[
-                f"- **{note.title}** ({note.source_type})"
-                + (f" - {note.url}" if note.url else "")
+                "- "
+                + _format_source_markdown(note.title, note.url, f" ({note.source_type})")
                 + f": {note.note}"
                 for note in dossier.source_notes
             ],
@@ -95,8 +100,8 @@ def render_blog_research_markdown(packet: BlogResearchPacket) -> str:
             "",
             "## Practical References",
             *[
-                f"- **{note.title}** ({note.source_type})"
-                + (f" - {note.url}" if note.url else "")
+                "- "
+                + _format_source_markdown(note.title, note.url, f" ({note.source_type})")
                 + f": {note.note}"
                 for note in packet.practical_references
             ],
@@ -120,14 +125,30 @@ def render_section_research_markdown(packet: SectionResearchPacket) -> str:
             "",
             "## Sources",
             *[
-                f"- **{note.title}** ({note.source_type}, {note.year or 'year unknown'})"
-                + (f" - {note.url}" if note.url else "")
+                "- "
+                + _format_source_markdown(
+                    note.title,
+                    note.url,
+                    f" ({note.source_type}, {note.year or 'year unknown'})",
+                )
                 + f": {note.note}"
                 for note in packet.source_notes
             ],
             "",
             "## Visual Spec",
             packet.visual_spec or "None",
+            "",
+            "## Image Asset",
+            f"- **Image URL:** {packet.image_url or 'None'}",
+            f"- **Image Credit URL:** {packet.image_credit_url or 'None'}",
+            f"- **Image Credit Text:** {packet.image_credit_text or 'None'}",
+            f"- **Image Alt Text:** {packet.image_alt_text or 'None'}",
+            "",
+            "## Code Example",
+            f"- **Title:** {packet.code_example_title or 'None'}",
+            f"- **Language:** {packet.code_example_language or 'None'}",
+            packet.code_example or "None",
+            f"- **Notes:** {packet.code_example_notes or 'None'}",
         ]
     )
 

@@ -134,7 +134,11 @@ def test_web_search_returns_empty_on_exception():
 def test_fetch_page_text_success():
     html = """
     <html>
-      <head><title>Test Page</title></head>
+      <head>
+        <title>Test Page</title>
+        <meta property="og:image" content="https://example.com/hero.png" />
+        <meta property="og:image:alt" content="Serving architecture diagram" />
+      </head>
       <body>
         <article>
           <p>This is meaningful content about distributed systems that explains the concepts clearly.</p>
@@ -154,6 +158,8 @@ def test_fetch_page_text_success():
             assert page.success
             assert page.url == "https://example.com/article"
             assert "Test Page" in page.title or page.word_count > 0
+            assert page.image_url == "https://example.com/hero.png"
+            assert page.image_alt_text == "Serving architecture diagram"
         except Exception:
             # bs4 may not be installed in all test environments; graceful skip
             pass
@@ -306,7 +312,15 @@ def test_as_langchain_tools_fetch_url_calls_toolkit():
         pytest.skip("langchain_core not installed")
 
     toolkit = ResearchToolkit(enabled=True)
-    fake_page = FetchedPage(url="https://arxiv.org/abs/1", title="ML Paper", text="Key findings.", word_count=2, success=True)
+    fake_page = FetchedPage(
+        url="https://arxiv.org/abs/1",
+        title="ML Paper",
+        text="Key findings.",
+        word_count=2,
+        success=True,
+        image_url="https://arxiv.org/static/image.png",
+        image_alt_text="Paper figure",
+    )
     with patch.object(toolkit, "fetch", return_value=fake_page) as mock_fetch:
         tools = toolkit.as_langchain_tools()
         fetch_tool = next(t for t in tools if t.name == "fetch_url")
@@ -314,3 +328,5 @@ def test_as_langchain_tools_fetch_url_calls_toolkit():
         mock_fetch.assert_called_once_with("https://arxiv.org/abs/1")
         assert "ML Paper" in result
         assert "Key findings." in result
+        assert "Primary image URL: https://arxiv.org/static/image.png" in result
+        assert "Image credit page: https://arxiv.org/abs/1" in result

@@ -21,10 +21,10 @@ class SeriesArchitectAgent(BaseAgent):
             audience=config.target_audience,
             num_parts=config.num_parts,
             research_summary=dossier.positioning_summary,
+            deepagent_guidance=self.deepagent_guidance(stage="series_architect", subagent_name="writer"),
         )
         return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="series_architect", subagent_name="writer"),
             user_prompt=prompt,
             schema=BlogSeriesOutline,
         )
-

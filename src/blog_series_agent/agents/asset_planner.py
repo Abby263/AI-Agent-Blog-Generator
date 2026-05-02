@@ -20,10 +20,10 @@ class AssetPlannerAgent(BaseAgent):
             part_number=part.part_number,
             part_title=part.title,
             final_content=final_markdown,
+            deepagent_guidance=self.deepagent_guidance(stage="asset", subagent_name="writer"),
         )
         return self.context.llm.generate_structured(
-            system_prompt=self.system_prompt,
+            system_prompt=self.system_prompt_with_deepagent(stage="asset", subagent_name="writer"),
             user_prompt=prompt,
             schema=AssetPlan,
         )
-

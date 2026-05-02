@@ -17,13 +17,18 @@ $active_skills
 Deterministic lint findings:
 $lint_findings
 
+DeepAgent filesystem guidance:
+$deepagent_guidance
+
 Score the blog on structure, alignment, clarity, accuracy, freshness, depth, tone, visuals, engagement, and practical relevance.
 Provide actionable fixes and a clear recommendation.
 Explicitly check whether the generated blog followed the active skills and note any violations.
 Be strict about:
 - under-length drafts (below the minimum word target is a hard failure)
-- fake image URLs, placeholder visuals, or any `![alt](url)` syntax (should be `[Image: ...]` blocks only)
+- fake image URLs, placeholder visuals, or embedded images without a matching credit line
 - generic or weak references (each reference should name author/org and title)
+- source blocks that omit the exact clickable source link
+- implementation-heavy sections with no working code example
 - shallow system-design discussion missing tradeoffs, failure modes, or production realities
 - missing continuity with the rest of the series (must reference previous and next parts)
 
