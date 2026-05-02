@@ -1,0 +1,430 @@
+[
+  {
+    "id": "skill-style-issue-add-visuals-or-diagrams-to-enhance-understanding-of-deployment-strategies",
+    "title": "Avoid style issue by applying: add visuals or diagrams to enhance understanding of deployment strateg",
+    "category": "style_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "ml system design"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "style_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When the content shows risk of style issue, apply this guidance: add visuals or diagrams to enhance understanding of deployment strategies",
+    "source_feedback_ids": [
+      "fb-211d910b4a",
+      "fb-c651914314"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:23:46.185062Z",
+    "updated_at": "2026-04-09T03:23:46.185064Z"
+  },
+  {
+    "id": "skill-style-issue-add-visuals-or-diagrams-to-enhance-understanding-of-the-ml-pipeline",
+    "title": "Avoid style issue by applying: add visuals or diagrams to enhance understanding of the ml pipeline",
+    "category": "style_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "ml system design"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "style_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When the content shows risk of style issue, apply this guidance: add visuals or diagrams to enhance understanding of the ml pipeline",
+    "source_feedback_ids": [
+      "fb-a60f96742c",
+      "fb-ba4c976f6e"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:25:57.381555Z",
+    "updated_at": "2026-04-09T03:25:57.381559Z"
+  },
+  {
+    "id": "skill-visual-issue-use-purposeful-visuals-instead-of-placeholders",
+    "title": "Use purposeful visuals instead of placeholders",
+    "category": "visual_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "visual_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When a section explains architecture, tradeoffs, or lifecycle flow, specify a concrete visual with placement, intent, and caption guidance. Never leave placeholder image URLs, captions, or example.com links.",
+    "source_feedback_ids": [
+      "fb-00cee9282d",
+      "fb-2c1c0dde09",
+      "fb-a16516aa54",
+      "fb-319329cee6",
+      "fb-92b52a679b",
+      "fb-7a6475e877",
+      "fb-33020f1318",
+      "fb-1fd21740b4"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:38:24.122567Z",
+    "updated_at": "2026-04-09T03:38:24.122784Z"
+  },
+  {
+    "id": "skill-structural-issue-avoid-structural-issue-by-applying-add-visuals-or-diagrams-to-illustrate-the-ml-pipeline-and-architecture",
+    "title": "Avoid structural issue by applying: Add visuals or diagrams to illustrate the ML pipeline and architecture",
+    "category": "structural_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "structural_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When the content shows risk of structural issue, apply this guidance: Add visuals or diagrams to illustrate the ML pipeline and architecture",
+    "source_feedback_ids": [
+      "fb-9974fb911b",
+      "fb-1b22c9f231"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:38:24.122842Z",
+    "updated_at": "2026-04-09T03:38:24.122842Z"
+  },
+  {
+    "id": "skill-example-quality-issue-ground-concepts-in-concrete-system-examples",
+    "title": "Ground concepts in concrete system examples",
+    "category": "example_quality_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "example_quality_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Each major concept should be anchored in at least one realistic system example, case study, or engineering scenario that shows how the idea changes design decisions.",
+    "source_feedback_ids": [
+      "fb-799044650d",
+      "fb-d705872d52",
+      "fb-3658c85f06",
+      "fb-61a66641b7",
+      "fb-9bc3c42ebd"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:38:24.122861Z",
+    "updated_at": "2026-04-09T03:38:24.122861Z"
+  },
+  {
+    "id": "skill-style-issue-avoid-style-issue-by-applying-add-visuals-or-diagrams-to-illustrate-the-ml-pipeline-and-architecture",
+    "title": "Avoid style issue by applying: Add visuals or diagrams to illustrate the ML pipeline and architecture",
+    "category": "style_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "style_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When the content shows risk of style issue, apply this guidance: Add visuals or diagrams to illustrate the ML pipeline and architecture",
+    "source_feedback_ids": [
+      "fb-5c82550999",
+      "fb-a940283c3e",
+      "fb-e773b09e04",
+      "fb-60c295e890",
+      "fb-1befdd4130",
+      "fb-4d0c49ffcb",
+      "fb-f28a4738b8",
+      "fb-211d910b4a",
+      "fb-c651914314",
+      "fb-68bb576d49",
+      "fb-89b24ed53b",
+      "fb-df2cb8de4e",
+      "fb-e502980d6c",
+      "fb-a60f96742c",
+      "fb-ba4c976f6e",
+      "fb-7669eae4f5",
+      "fb-fb24d381b6"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:38:24.122885Z",
+    "updated_at": "2026-04-09T03:38:24.122885Z"
+  },
+  {
+    "id": "skill-clarity-issue-open-with-a-concrete-problem-before-definitions",
+    "title": "Open with a concrete problem before definitions",
+    "category": "clarity_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "clarity_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Start introductions with a relatable production problem or operating tension before formal definitions, then connect that setup to the system design concepts that follow.",
+    "source_feedback_ids": [
+      "fb-58c05560b6",
+      "fb-d035781d3a"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:42:53.336332Z",
+    "updated_at": "2026-04-09T03:42:53.336334Z"
+  },
+  {
+    "id": "skill-series-continuity-issue-connect-each-part-to-the-series-journey",
+    "title": "Connect each part to the series journey",
+    "category": "series_continuity_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "series_continuity_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Explicitly connect the current part to the previous and next parts in the series so the article reads like a chapter in a book rather than a standalone post.",
+    "source_feedback_ids": [
+      "fb-f45f25cdda",
+      "fb-c04c899f86"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:42:53.336365Z",
+    "updated_at": "2026-04-09T03:42:53.336365Z"
+  },
+  {
+    "id": "skill-skill-violation-avoid-skill-violation-by-applying-apply-the-active-guidance-explicitly-in-the-revised-draft",
+    "title": "Avoid skill violation by applying: Apply the active guidance explicitly in the revised draft.",
+    "category": "skill_violation",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "skill_violation"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When the content shows risk of skill violation, apply this guidance: Apply the active guidance explicitly in the revised draft.",
+    "source_feedback_ids": [
+      "fb-f9fd215496",
+      "fb-43fa931e00"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:42:53.336379Z",
+    "updated_at": "2026-04-09T03:42:53.336379Z"
+  },
+  {
+    "id": "skill-citation-issue-use-concrete-technical-references",
+    "title": "Use concrete technical references",
+    "category": "citation_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "citation_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Prefer concrete engineering references with real URLs, docs, papers, or system write-ups over generic book-only references, especially for modern platform or production topics.",
+    "source_feedback_ids": [
+      "fb-82b787c0b0",
+      "fb-7fcb7d6031"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T03:44:04.649281Z",
+    "updated_at": "2026-04-09T03:44:04.649283Z"
+  },
+  {
+    "id": "skill-structural-issue-add-synthesis-after-dense-enumerations",
+    "title": "Add synthesis after dense enumerations",
+    "category": "structural_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "structural_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "After dense lists, comparisons, or architecture walkthroughs, add a short synthesis paragraph that explains what matters, what to remember, and how the pieces relate.",
+    "source_feedback_ids": [
+      "fb-9974fb911b",
+      "fb-1b22c9f231",
+      "fb-75bfe0b02c",
+      "fb-2addbce4df",
+      "fb-66406e3213",
+      "fb-cef3b35e93",
+      "fb-81fa60a319",
+      "fb-58be3dc834",
+      "fb-236e7f10cf",
+      "fb-42fe51d6ac",
+      "fb-0979241d51",
+      "fb-48712a022b",
+      "fb-f5e79f1e66",
+      "fb-60982df605"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 0,
+    "status": "candidate",
+    "active": false,
+    "created_at": "2026-04-09T09:54:12.352334Z",
+    "updated_at": "2026-04-09T09:54:12.352338Z"
+  }
+]

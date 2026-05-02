@@ -1,646 +1,635 @@
-# AI Agent Content Series Generator
+# Blog Series Agent
 
-A sophisticated **multi-agent workflow** using **LangGraph** and **LangSmith** to automatically generate long-form content (blogs, news, tutorials, reviews) with consistent structure, diagrams, and citations.
+`blog-series-agent` is a production-oriented starter repository for generating long-form technical blog series with a LangGraph workflow. It produces book-like Medium articles that move from fundamentals to production realities, adds a formal human approval gate, evaluates outputs systematically, and learns from repeated feedback through explicit reusable guidance.
 
-## Features
-
-✨ **9 Specialized AI Agents**:
-- 🎯 Supervisor: Orchestrates workflow and routing
-- 🔍 Research: Web search and information gathering
-- 📋 Outline: Structure creation and planning
-- ✍️ Content Writer: Section-by-section writing
-- 💻 Code Generator: Python implementation examples
-- 📊 Diagram: Mermaid → PNG diagram generation
-- 📚 Reference: Citation management
-- ✅ QA: Automated quality checks
-- 🔧 Integration: Final assembly and formatting
-
-🚀 **Key Capabilities**:
-- Generates multi-format content (editorial/news/tutorial/review) with configurable target lengths
-- Automatically plans multi-chapter series with continuity
-- Creates diagrams (Mermaid → PNG) plus optional code snippets
-- Captures sources, metrics, and references for each section
-- Live progress tracking and download-ready Markdown via REST API + Next.js UI
-
-⚙️ **Technical Stack**:
-- **LangGraph**: Workflow orchestration
-- **LangSmith**: Tracing and monitoring
-- **OpenAI GPT-4**: Language model
-- **Tavily**: Web search tool
-- **Pydantic**: State validation
-- **Mermaid**: Diagram generation
-
-## Installation
-
-### Prerequisites
-
-- **Python 3.11+** (required for LangSmith Studio UI in-memory server)
-  - Python 3.9-3.10 will work for CLI usage only (without Studio UI)
-  - Recommended: Python 3.12+ for best compatibility
-- **Node.js** (for Mermaid CLI diagram generation)
-- **Mermaid CLI** (for converting diagram code blocks to PNG images)
-- **uv** (recommended) or Poetry (for dependency management)
-
-### Setup
-
-1. **Clone the repository**:
-```bash
-git clone <repository-url>
-cd ai-agent-blog-series-generator
-```
-
-2. **Install uv** (if not already installed):
-```bash
-# On macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# On Windows
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Alternative: using pip or Homebrew
-pip install uv  # or: brew install uv
-```
-
-3. **Install Mermaid CLI** (for diagram generation):
-```bash
-# Install globally via npm
-npm install -g @mermaid-js/mermaid-cli
-
-# Verify installation
-mmdc --version
-```
-
-4. **Install Python dependencies**:
-```bash
-# Create virtual environment and install dependencies
-uv sync
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .  # Install project in editable mode
-uv pip install -U "langgraph-cli[inmem]"  # For LangSmith Studio UI
-```
-
-**What gets installed:**
-- `langgraph` and `langgraph-cli` for workflow orchestration and UI
-- `langchain` and `langchain-openai` for LLM integration
-- `langsmith` for tracing and monitoring
-- All other project dependencies from `pyproject.toml`
-
-
-**Quick Start Summary** (complete setup in one go):
-```bash
-# 1. Clone and navigate
-git clone <repository-url>
-cd ai-agent-blog-series-generator
-
-# 2. Install Mermaid CLI (for diagrams)
-npm install -g @mermaid-js/mermaid-cli
-
-# 3. Install backend dependencies
-uv sync
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
-
-# 4. Create .env and add keys
-cp .env.example .env  # or touch .env && edit
-
-# 5. Run backend API
-uvicorn main:app --reload
-
-# 6. Install frontend deps (first time only)
-cd frontend && npm install
-
-# 7. Start Next.js UI
-npm run dev
-```
-
-⚠️ **Important**: Always ensure the virtual environment is activated before running any commands. If packages are not found, check that you see `(ai-agent-blog-series-generator-py3.12)` in your terminal prompt.
-
-5. **Configure environment variables**:
-
-Create a `.env` file in the project root with your API keys:
+The system accepts a request such as:
 
 ```bash
-touch .env
+uv run python -m blog_series_agent run --topic "ML System Design" --audience intermediate --parts 12 --use-memory true
 ```
 
-Add the following to your `.env` file:
+and produces:
+
+- a full series outline
+- one draft Markdown file per blog
+- research notes per blog
+- reviewer reports in JSON and Markdown
+- improved final Markdown files
+- asset planning specs
+- blog / series / run evaluations
+- approval records
+- raw feedback logs
+- candidate and approved reusable skills
+- run manifests for status tracking and inspection
+
+## Architecture
+
+The repository uses two LangGraph workflows plus service-level evaluation and memory layers:
+
+- `outline graph`: topic research -> series architect
+- `blog graph`: blog research -> retrieve approved skills -> writer -> reviewer -> improver -> asset planner -> evaluation -> memory update -> approval
+
+The outer service layer orchestrates:
+
+- run manifests and artifact persistence
+- series-level and run-level evaluation
+- raw feedback capture
+- candidate skill extraction
+- approved skill retrieval
+- optional LangSmith tracing
+
+## Why LangGraph
+
+LangGraph is used for the stateful parts of the workflow where routing matters:
+
+- optional review and improvement stages
+- optional evaluation and memory update stages
+- approval-required gating in production mode
+- routing back to improvement when human reviewers request changes
+- explicit per-part workflow state including retrieved skills and evaluation results
+
+The service layer handles run manifests, disk persistence, cross-part aggregation, API/dashboard integration, and auditable memory retrieval.
+
+## DeepAgents-Style Profile
+
+The pipeline now follows the same filesystem-primitives pattern as the
+LangChain DeepAgents content-builder example:
+
+- `src/blog_series_agent/deepagent/AGENTS.md` contains always-on writing memory, voice, and completion criteria.
+- `src/blog_series_agent/deepagent/skills/*/SKILL.md` contains reusable workflows loaded by stage, such as series planning, section grounding, visuals, and code examples.
+- `src/blog_series_agent/deepagent/subagents.yaml` declares the topic researcher, chapter researcher, section researcher, writer, and reviewer roles.
+
+These files do not replace LangGraph. They are loaded by `DeepAgentProfileLoader`
+and injected explicitly into the relevant research, planning, writing, review,
+improvement, and asset prompts. This keeps guidance visible and auditable: the
+agent receives named filesystem guidance instead of hidden prompt mutation.
+
+## Blog Authoring Flow
+
+Each blog is now generated in three explicit stages:
+
+- series architect decides the ordered list of blog chapters
+- per-blog chapter planner creates a `blog_plans/Part-X-...-plan.{json,md}` artifact with the table of contents and section targets
+- section research gathers evidence for each planned section, preserving exact source links, source-image metadata when available, and implementation examples
+- section writer makes multiple LLM calls, one per planned section, before assembling the full Markdown article
+- section improver revises each section, preserving clickable sources, image credits, and syntactically valid code/config blocks
+
+This keeps generation inspectable and makes it easier to enforce chapter structure and minimum article length.
+
+## Deterministic Quality Gates
+
+The repo now includes a deterministic content-lint layer that runs alongside model-based review.
+
+It checks for:
+
+- under-target word count
+- missing mandatory chapter sections
+- placeholder or fake visual markers such as `example.com` links
+- weak references
+- embedded images without nearby clickable credit links
+- missing code/config examples in implementation-heavy sections
+
+These findings are passed explicitly into the reviewer and improver prompts, persisted into blog evaluations, and surfaced in score penalties so the system does not over-credit shallow but well-formatted drafts.
+
+## Evaluation Architecture
+
+The evaluation layer is separate from approval and memory.
+
+It produces:
+
+- blog-level evaluation under `outputs/evaluations/blog/`
+- series-level evaluation under `outputs/evaluations/series/`
+- run-level evaluation under `outputs/evaluations/runs/`
+
+Implemented models include:
+
+- `CriterionScore`
+- `BlogEvaluation`
+- `SeriesEvaluation`
+- `RunEvaluation`
+- `EvaluationIssue`
+- `EvaluationTrend`
+- `RepeatedFailurePattern`
+- `ImprovementOpportunity`
+
+Blog evaluation covers:
+
+- structure consistency
+- series alignment
+- clarity of explanation
+- technical accuracy
+- technical freshness
+- depth and completeness
+- readability and tone
+- visuals and examples
+- engagement and learning reinforcement
+- practical relevance
+- active skill adherence
+
+Series evaluation checks:
+
+- progression quality
+- topic overlap
+- continuity between parts
+- tone and structure consistency
+- coverage gaps
+
+Run evaluation checks:
+
+- number of blogs completed
+- average review scores
+- approval outcomes
+- repeated issue patterns
+- retry and revision load signals
+
+## Outline Reuse
+
+Single-blog reruns now reuse the latest matching outline for the same topic, audience, and part count instead of silently regenerating a different table of contents each time.
+
+This keeps:
+
+- part numbers stable across review loops
+- approval records tied to the same artifact identity
+- human feedback actionable on rerun
+
+## Approval History vs Memory
+
+These are intentionally separate.
+
+Approval history is release-oriented:
+
+- stored under `outputs/approval/`
+- answers whether a specific artifact is publish-ready
+- includes reviewer identity, decision, comments, and timestamps
+
+Memory is learning-oriented:
+
+- stored under `data/memory/`
+- exists to improve future generations
+- is never treated as approval state
+- must remain inspectable and auditable
+
+The repository does **not** merge approval records and learned memory into one concept or one store.
+
+## Memory Architecture
+
+The implemented learning loop uses two explicit memory layers plus a candidate-skill approval buffer:
+
+### 1. Raw feedback log
+
+Source of truth for learning inputs:
+
+- `data/memory/raw_feedback_log.jsonl`
+- `data/memory/raw_feedback_log.md`
+
+Each entry includes:
+
+- `feedback_id`
+- `source_type`
+- `source_artifact`
+- `part_number`
+- `blog_slug`
+- `raw_feedback`
+- `normalized_issue_type`
+- `severity`
+- `suggested_fix`
+- `reviewer`
+- `timestamp`
+
+### 2. Approved reusable skills
+
+Only approved reusable guidance influences future runs by default:
+
+- `data/memory/approved_skills.json`
+- `data/memory/approved_skills.md`
+
+Each approved skill includes:
+
+- `id`
+- `title`
+- `category`
+- `trigger_conditions`
+- `guidance_text`
+- `source_feedback_ids`
+- `confidence_score`
+- `usage_count`
+- `status`
+- `active`
+- `created_at`
+- `updated_at`
+
+### Candidate-skill approval buffer
+
+Candidate skills are staged separately before promotion:
+
+- `data/memory/skill_candidates.json`
+
+This is not treated as the active memory layer. It is a review buffer for human control.
+
+## Raw Feedback Lifecycle
+
+Feedback is captured from:
+
+- reviewer outputs
+- evaluation issues
+- approval comments
+- explicit user/API/CLI submissions
+
+The system normalizes comments into structured feedback items. Repeated patterns are then grouped into candidate reusable skills. Candidate skills can be approved into the active reusable skill store or rejected and kept inactive.
+
+Example raw feedback entry:
+
+```json
+{
+  "feedback_id": "fb-1234abcd",
+  "source_type": "reviewer",
+  "source_artifact": "outputs/reviews/Part-1-introduction-review.md",
+  "part_number": 1,
+  "blog_slug": "introduction",
+  "raw_feedback": "The introduction jumps into definitions before the real-world problem.",
+  "normalized_issue_type": "clarity_issue",
+  "severity": "medium",
+  "suggested_fix": "Open with a concrete real-world problem before definitions.",
+  "reviewer": "reviewer-agent"
+}
+```
+
+## Approved Skill Lifecycle
+
+1. Feedback enters the raw feedback log.
+2. `memory build` groups repeated issues into candidate skills.
+3. A human approves or rejects each candidate skill.
+4. Only approved active skills are stored in `approved_skills.json`.
+5. Future runs retrieve only relevant approved skills.
+
+Example approved skill entry:
+
+```json
+{
+  "id": "skill-clarity-open-with-problem",
+  "title": "Lead introductions with a concrete problem",
+  "category": "clarity_issue",
+  "trigger_conditions": {
+    "topic_keywords": ["ml system design"],
+    "audience_levels": ["intermediate"],
+    "artifact_types": ["draft", "review", "final"],
+    "issue_types": ["clarity_issue"]
+  },
+  "guidance_text": "When opening a chapter, begin with a relatable production problem before defining the concept.",
+  "source_feedback_ids": ["fb-1234abcd", "fb-5678efgh"],
+  "confidence_score": 0.75,
+  "usage_count": 3,
+  "status": "approved",
+  "active": true
+}
+```
+
+## Explicit Guidance Retrieval
+
+Memory is retrieved guidance, not hidden prompt mutation.
+
+Before writing, reviewing, and improving a blog, the system retrieves only relevant approved skills based on:
+
+- topic
+- audience
+- part number
+- artifact type
+- known issue categories where applicable
+
+The retrieved guidance is passed explicitly into prompts as named inputs:
+
+- `retrieved_guidance`
+- `active_skills`
+- `recent_mistakes`
+- `violated_skills`
+
+Example retrieved guidance passed to a run:
+
+```text
+Retrieved approved skills:
+- [skill-clarity-open-with-problem] When opening a chapter, begin with a relatable production problem before defining the concept.
+- [skill-series-bridge] Explicitly connect each post to the previous and next part in the series.
+```
+
+This is logged and inspectable through:
+
+- run artifacts
+- retrieval preview endpoints and CLI
+- `data/memory/retrieval_log.jsonl`
+- LangSmith metadata when enabled
+
+## Reviewer Skill-Adherence Checks
+
+The reviewer does not only score the article itself. It also checks:
+
+- which active skills were provided
+- which skills were followed
+- which skills were violated
+- a `skill_adherence_score`
+- explanatory `skill_adherence_notes`
+
+These are stored in both review and evaluation outputs.
+
+## LangSmith Integration
+
+LangSmith is optional.
+
+Enable it through config or environment:
+
+- `BLOG_SERIES_ENABLE_LANGSMITH=true`
+- `LANGSMITH_API_KEY=...`
+- `BLOG_SERIES_LANGSMITH_PROJECT=blog-series-agent`
+- `BLOG_SERIES_LANGSMITH_API_KEY_ENV=LANGSMITH_API_KEY`
+- `BLOG_SERIES_LANGSMITH_ENDPOINT=` if using a custom endpoint
+
+Supported observability hooks include:
+
+- start and finish run traces
+- node event logging
+- artifact metadata logging
+- evaluation summaries
+- feedback events
+- skill retrieval metadata
+- skill adherence metadata
+
+If LangSmith is not configured, the repository still works normally.
+
+## Repository Layout
+
+```text
+src/blog_series_agent/
+  agents/        Prompt-driven workflow agents
+  api/           FastAPI app and routes
+  config/        Environment and YAML config models
+  dashboard/     Streamlit launcher and UI
+  graphs/        LangGraph state, routing, builders
+  models/        LLM abstraction layer
+  prompts/       External prompt templates
+  schemas/       Pydantic domain and API schemas
+  services/      Pipeline, approval, evaluation, memory, observability
+  utils/         File, prompt, logging, slug helpers
+outputs/
+  series_outline/
+  research/
+  drafts/
+  reviews/
+  final/
+  assets/
+  approval/
+  evaluations/
+  manifests/
+data/
+  memory/
+tests/
+configs/
+```
+
+## Setup
+
+Requirements:
+
+- Python 3.11+
+- `uv`
+- an OpenAI-compatible API key for live generation
+
+Install:
 
 ```bash
-# Required API Keys
-OPENAI_API_KEY=your_openai_api_key_here
-TAVILY_API_KEY=your_tavily_api_key_here
-
-# Model selection (defaults to GPT-5 Nano)
-PRIMARY_LLM_MODEL=gpt-5-nano
-SECONDARY_LLM_MODEL=gpt-5-nano
-# Optional legacy override
-OPENAI_MODEL_NAME=gpt-5-nano
-
-# Optional: LangSmith for tracing and monitoring
-LANGSMITH_API_KEY=your_langsmith_api_key_here
-
-# LangSmith project name (automatically set if not provided)
-LANGSMITH_PROJECT=ml-blog-generation
-
-# Enable LangSmith tracing (automatically set when LANGSMITH_API_KEY is provided)
-LANGSMITH_TRACING_V2=true
+uv sync --extra dev
+cp .env.example .env
 ```
 
-**Getting API Keys:**
-- **OpenAI**: [OpenAI Platform](https://platform.openai.com/api-keys)
-- **Tavily**: [Tavily](https://tavily.com/)
-- **LangSmith**: [LangSmith](https://smith.langchain.com/) (optional)
+Key environment variables:
 
-6. **Run the backend and UI**:
+- `OPENAI_API_KEY`
+- `OPENAI_BASE_URL`
+- `BLOG_SERIES_MODEL`
+- `BLOG_SERIES_TEMPERATURE`
+- `BLOG_SERIES_MAX_TOKENS`
+- `BLOG_SERIES_OUTPUT_DIR`
+- `BLOG_SERIES_ENABLE_EVALUATION`
+- `BLOG_SERIES_ENABLE_MEMORY`
+- `BLOG_SERIES_USE_MEMORY`
+- `BLOG_SERIES_MAX_RETRIEVED_SKILLS`
+- `BLOG_SERIES_ENABLE_LANGSMITH`
+- `LANGSMITH_API_KEY`
+- `BLOG_SERIES_LANGSMITH_PROJECT`
+- `BLOG_SERIES_LANGSMITH_TRACE_PROMPTS`
+- `BLOG_SERIES_LANGSMITH_TRACE_ARTIFACTS`
+
+## CLI
+
+Generate a full series:
 
 ```bash
-# Backend API (FastAPI)
-uvicorn main:app --reload
-# Health check
-curl http://localhost:8000/api/health
-
-# Frontend (Next.js)
-cd frontend
-npm install          # first run
-npm run dev          # http://localhost:3000
+uv run python -m blog_series_agent run --topic "ML System Design" --audience intermediate --parts 12 --use-memory true
 ```
 
-## Usage
-
-#### REST API Mode
-
-You can now run the workflow as a REST API (ideal for frontend integration):
+Generate only the outline:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uv run python -m blog_series_agent outline --topic "AI Agents"
 ```
 
-Key endpoints:
-- `GET /` or `/api/health` – status checks.
-- `POST /api/blogs` – single blog generation (`topic`, `requirements`, etc.).
-- `POST /api/series` – synchronous multi-blog generation.
-- `POST /api/series/jobs` – enqueue long-running series generation and return `job_id`.
-- `GET /api/series/jobs/{job_id}` – poll progress, retrieve chapter content, and download paths once finished.
-
-### Frontend (Next.js)
-
-A starter frontend lives in `frontend/` (Next.js 15 + Tailwind). It consumes the
-FastAPI endpoints and provides simple forms for single/series generation.
+Generate one part:
 
 ```bash
-# 1. Start FastAPI backend
-uvicorn main:app --reload
-
-# 2. Configure frontend env
-cd frontend
-cp .env.local.example .env.local  # adjust NEXT_PUBLIC_API_BASE_URL if needed
-
-# 3. Run the Next.js dev server
-npm run dev
+uv run python -m blog_series_agent write --topic "ML System Design" --part 4 --use-memory true
 ```
 
-Visit `http://localhost:3000` to access the UI. Ensure the backend is running so
-API calls succeed.
-
-#### Docker & Azure Container Apps
-
-Docker images are provided for both services:
+Review an existing draft:
 
 ```bash
-# Build images locally
-docker build -f Dockerfile.backend -t blog-backend .
-docker build -f Dockerfile.frontend -t blog-frontend .
-
-# Orchestration (local)
-docker-compose up --build
+uv run python -m blog_series_agent review --file outputs/drafts/Part-4-feature-pipelines.md
 ```
 
-Deploying to Azure Container Apps typically follows this flow:
+Improve an existing draft:
 
 ```bash
-# Push images to Azure Container Registry
-az acr build --registry <ACR_NAME> --image blog-backend:latest -f Dockerfile.backend .
-az acr build --registry <ACR_NAME> --image blog-frontend:latest -f Dockerfile.frontend .
-
-# Create Container Apps (backend)
-az containerapp create --name blog-backend --resource-group <RG> --image <ACR_LOGIN>/blog-backend:latest --target-port 8000 --ingress external --env-vars OPENAI_API_KEY=... TAVILY_API_KEY=... PRIMARY_LLM_MODEL=gpt-5-nano
-
-# Frontend (point NEXT_PUBLIC_API_BASE_URL to backend URL)
-az containerapp create --name blog-frontend --resource-group <RG> --image <ACR_LOGIN>/blog-frontend:latest --target-port 3000 --ingress external --env-vars NEXT_PUBLIC_API_BASE_URL=https://<backend-base-url>
+uv run python -m blog_series_agent improve --draft outputs/drafts/Part-4-feature-pipelines.md --review outputs/reviews/Part-4-feature-pipelines-review.json
 ```
 
-Adjust secrets with Azure Key Vault or Container Apps secrets as needed.
-
-
-#### Rendering Mermaid Diagrams
-
-Blog posts embed Mermaid code blocks for every diagram placeholder. During
-integration these blocks are automatically rendered to PNG files using the
-Mermaid CLI (if installed), so the final markdown already references concrete
-images. You can re-render or regenerate diagrams at any time with:
+Evaluate a generated part:
 
 ```bash
-python -m src.utils.render_mermaid_program --input output
+uv run python -m blog_series_agent evaluate --part 4
 ```
 
-Key options:
-- Use `--dry-run` to list diagrams without writing files.
-- `--images-dir` overrides the image directory from the diagram agent config.
-
-The script scans each markdown file separately, renders diagrams with Mermaid
-CLI, and replaces only the matching code block with an image reference—no
-combining of multiple blogs or outputs.
-
-#### Validation and Testing
+Evaluate the latest series:
 
 ```bash
-# Ensure virtual environment is activated
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Validate setup without running (dry run)
-python main.py --dry-run
-
-# Test with debug logging
-python main.py --topic "Machine Learning Basics" --log-level DEBUG
+uv run python -m blog_series_agent evaluate-series
 ```
 
-#### Advanced Options
+Submit explicit feedback:
 
 ```bash
-# Custom configuration and output
-python main.py --topic "Fraud Detection" \
-    --config custom_config.yaml \
-    --output custom_output/
-
-# With debug logging
-python main.py --topic "Large-Scale Recommendation Systems" \
-    --requirements "Netflix-scale, 200M+ users, <100ms latency" \
-    --author "Senior ML Engineer" \
-    --log-level DEBUG
+uv run python -m blog_series_agent feedback add --part 4 --type clarity_issue --comment "Lead with the production pain point."
 ```
 
-### Command Line Arguments Reference
-
-| Argument | Description | Example |
-|----------|-------------|---------|
-| `--topic` | Blog topic for single blog generation | `--topic "Real-Time Fraud Detection"` |
-| `--requirements` | Optional system requirements/specifications | `--requirements "Scale: 1M TPS, Latency: <50ms"` |
-| `--target-length` | Target word count per blog | `--target-length 5000` |
-| `--content-type` | Content type (blog/news/tutorial/review) | `--content-type news` |
-| `--series` | Blog series name | `--series "ML System Design"` |
-| `--topics` | List of topics for blog series | `--topics "Bot Detection" "ETA Prediction"` |
-| `--series-count` | Number of blogs to generate when using `--series` | `--series-count 5` |
-| `--author` | Author name (default: "AI Agent") | `--author "John Doe"` |
-| `--output` | Custom output directory | `--output custom_output/` |
-| `--config` | Path to configuration file | `--config config/prod_config.yaml` |
-| `--log-level` | Logging level (DEBUG/INFO/WARNING/ERROR) | `--log-level DEBUG` |
-| `--dry-run` | Validate setup without running workflow | `--dry-run` |
-
-## Configuration
-
-Edit `config/workflow_config.yaml` to customize:
-
-- **LLM settings**: Model, temperature, max tokens
-- **Agent configuration**: Per-agent LLM and parameters
-- **Workflow settings**: Checkpoints, retry policy, timeouts
-- **Quality standards**: Thresholds and weights
-- **Output format**: Directories and file patterns
-
-### Key Configuration Sections
-
-```yaml
-llm:
-  primary:
-    model: "gpt-4"
-    temperature: 0.7
-    max_tokens: 4000
-
-agents:
-  supervisor:
-    temperature: 0.3
-  content_writer:
-    temperature: 0.7
-    parallel_sections: 6
-  research:
-    web_search:
-      max_queries: 8  # limit how many search queries are issued per topic
-
-workflow:
-  checkpoints:
-    enabled: true
-    locations: [after_research, after_outline, after_qa]
-  
-  retry:
-    max_attempts: 3
-    backoff_strategy: "exponential"
-  
-  langgraph:
-    recursion_limit: 75  # Raise this if you hit GraphRecursionError
-    max_revision_loops: 3   # Max QA revision cycles before human review
-```
-
-## Project Structure
-
-```
-ai-agent-blog-series-generator/
-├── src/
-│   ├── agents/              # 9 specialized agents
-│   │   ├── base_agent.py
-│   │   ├── supervisor_agent.py
-│   │   ├── research_agent.py
-│   │   ├── outline_agent.py
-│   │   ├── content_writer_agent.py
-│   │   ├── code_generator_agent.py
-│   │   ├── diagram_agent.py
-│   │   ├── reference_agent.py
-│   │   ├── qa_agent.py
-│   │   └── integration_agent.py
-│   ├── workflow/            # LangGraph workflow
-│   │   ├── graph.py
-│   │   ├── nodes.py
-│   │   └── routing.py
-│   ├── tools/               # Agent tools
-│   │   ├── web_search.py
-│   │   ├── diagram_generator.py
-│   │   └── code_validator.py
-│   ├── schemas/             # Pydantic schemas
-│   │   └── state.py
-│   └── utils/               # Utilities
-│       ├── config_loader.py
-│       ├── llm_factory.py
-│       ├── logger.py
-│       └── prompt_loader.py
-├── config/                  # Configuration files
-│   └── workflow_config.yaml
-├── src/
-│   ├── prompts/             # Agent prompts
-│   │   └── agent_prompts.md
-├── output/                  # Generated blogs
-├── images/                  # Generated diagrams
-├── logs/                    # Log files
-├── main.py                  # CLI entry point
-├── app.py                   # LangSmith Studio UI entry point
-├── langgraph.json          # LangGraph configuration
-├── pyproject.toml          # Dependencies
-├── Makefile                # Development commands
-└── README.md               # This file
-```
-
-## Workflow Architecture
-
-```
-User Input → Supervisor → Research → Outline → 
-Content Writer (parallel sections) → Code Generator → 
-Diagram Generator → Reference Manager → QA → 
-Integration → Final Blog
-```
-
-### Conditional Routing
-
-- **Content Writer**: Loops until all sections complete
-- **QA Check**: Routes to integration (pass) or revision (fail)
-- **Human Review**: Optional checkpoints for approval
-
-## Output
-
-Generated blog posts include:
-
-- **Markdown file** with complete content
-- **Diagrams** (PNG images in `images/` folder)
-- **Code examples** integrated throughout
-- **References** with valid URLs
-- **Table of contents** auto-generated
-- **Metadata** (author, date, quality score)
-
-### Example Output Structure
-
-```markdown
-# ML System Design: Real-Time Fraud Detection
-
-**Author**: AI Agent
-**Date**: 2025-01-15
-
-## Table of Contents
-1. Introduction
-2. Problem Statement
-3. Feature Engineering
-...
-
-## Introduction
-[Content with real-world examples, diagrams, code...]
-
-## References
-[1] Netflix Engineering Blog - https://...
-[2] Uber Engineering Blog - https://...
-```
-
-## Monitoring with LangSmith
-
-The workflow integrates with LangSmith for tracing, metrics, performance monitoring, debugging, and quality evaluation.
-
-- 📊 **Tracing**: Visualize agent execution flow
-- 📈 **Metrics**: Track latency, tokens, costs
-- ⚡ **Performance**: Monitor agent response times
-- 🐛 **Debugging**: Identify and fix issues
-- 📝 **Evaluation**: Assess output quality
-
-Configure in your `.env` file (only `LANGSMITH_API_KEY` is required, others are set automatically):
-```bash
-# Required for LangSmith integration
-LANGSMITH_API_KEY=your_langsmith_api_key_here
-
-# Optional - these are set automatically if not provided:
-# LANGSMITH_PROJECT=ml-blog-generation
-# LANGSMITH_TRACING_V2=true
-```
-
-The workflow will automatically:
-- Enable tracing when `LANGSMITH_API_KEY` is provided
-- Set the project name to "ml-blog-generation" (configurable in `config/workflow_config.yaml`)
-- Enable LangSmith tracing v2
-
-## Development
-
-### Makefile Commands for Development
-
-The project includes comprehensive Makefile commands for development tasks:
+Build candidate skills from repeated feedback:
 
 ```bash
-# Setup and installation
-make setup          # Initial setup (install + create directories)
-make install         # Install dependencies using Poetry
-
-# Running the application
-make studio          # Start LangSmith Studio UI (handles activation)
-make validate        # Validate environment and configuration
-make start TOPIC="Your Topic"              # Generate single blog
-make series SERIES="Series Name" TOPICS="Topic1,Topic2"  # Generate series
-make example         # Run example blog generation
-
-# Development and testing
-make test            # Run tests
-make lint            # Run linting checks
-make format          # Format code with black
-make typecheck       # Run type checking with mypy
-
-# Maintenance
-make clean           # Clean generated files and caches
-make clean-all       # Clean everything including virtual environment
-make logs            # Show recent logs
-make config          # Show current configuration
-make update          # Update dependencies
-
-# Utilities
-make shell           # Start Poetry shell
-make help            # Show all available commands
+uv run python -m blog_series_agent memory build --topic "ML System Design" --audience intermediate
 ```
 
-### Manual Development Commands
-
-**Note:** Ensure virtual environment is activated, or use `uv run` prefix:
+List candidate and approved skills:
 
 ```bash
-# Running Tests
-pytest tests/ -v  # or: uv run pytest tests/ -v
-
-# Code Quality
-black src/ main.py                    # Format code
-pylint src/ --max-line-length=100    # Lint code
-mypy src/                             # Type checking
+uv run python -m blog_series_agent memory list
 ```
 
-### Adding New Agents
+Approve or reject a candidate skill:
 
-1. Create agent class in `src/agents/`
-2. Inherit from `BaseAgent`
-3. Implement `execute()` method
-4. Add node function in `src/workflow/nodes.py`
-5. Update workflow graph in `src/workflow/graph.py`
-
-## Customization
-
-### Custom Prompts
-
-Edit `src/prompts/agent_prompts.md` to customize agent behavior.
-
-### Custom Templates
-
-Modify `config/workflow_config.yaml` under `template:` section.
-
-### Blog Series Configuration
-
-Create custom series:
-
-```python
-from src.schemas.state import BlogSeriesConfig
-
-series = BlogSeriesConfig(
-    series_name="Advanced ML Systems",
-    number_of_blogs=5,
-    topics=[
-        "Distributed Training",
-        "Model Serving at Scale",
-        "Feature Stores",
-        "Online Learning",
-        "A/B Testing Infrastructure"
-    ],
-    author="Your Name",
-    output_directory="output/advanced-ml"
-)
-```
-
-## Troubleshooting
-
-### LangSmith Studio UI Issues
-
-**"Python 3.11+ required" or "langgraph: command not found"**
-- Upgrade to Python 3.11+ (3.12+ recommended)
-- Reinstall dependencies: `rm -rf .venv && uv sync && uv pip install -U "langgraph-cli[inmem]"`
-- Verify: `langgraph --version`
-
-**"Cannot find graph" or UI not loading**
-- Ensure `langgraph.json` and `app.py` exist in project root
-- Verify configuration: `cat langgraph.json`
-
-**"Port 8123 already in use"**
-- Kill existing process: `pkill -f "langgraph dev"`
-- Use different port: `langgraph dev --no-browser --port 8124`
-
-**Workflow fails to start**
-- Validate setup: `python main.py --dry-run`
-- Check `.env` file exists and has required API keys
-- Reinstall dependencies: `uv sync`
-
-### Environment Variable Issues
-
-**Missing API keys**
-- Ensure `.env` file exists in project root
-- Add required keys: `OPENAI_API_KEY`, `TAVILY_API_KEY`
-- Validate: `make validate` or `python main.py --dry-run`
-
-**Permission errors**
-- Ensure `.env` is readable: `chmod 644 .env`
-
-### Other Issues
-
-**Mermaid CLI not found**
 ```bash
-npm install -g @mermaid-js/mermaid-cli
+uv run python -m blog_series_agent memory approve --skill-id skill-clarity-open-with-problem
+uv run python -m blog_series_agent memory reject --skill-id skill-clarity-open-with-problem
 ```
 
-### Memory Issues
+Preview retrieval:
 
-Reduce parallel execution in config:
-```yaml
-agents:
-  content_writer:
-    parallel_sections: 3  # Reduce from 6
+```bash
+uv run python -m blog_series_agent memory retrieve --topic "ML System Design" --part 1
 ```
 
-### Quality Check Failures
+Launch the API:
 
-Adjust thresholds in config:
-```yaml
-quality:
-  minimum_score: 6.0  # Lower from 7.0
+```bash
+uv run python -m blog_series_agent api
 ```
 
-## Performance
+Launch the dashboard:
 
-Expected performance metrics:
+```bash
+uv run python -m blog_series_agent dashboard
+```
 
-- **End-to-end time**: 30-45 minutes per blog
-- **Token usage**: 150K-200K tokens per blog
-- **Cost**: $6-10 per blog (GPT-4)
-- **Quality score**: 7.5-9.0/10
+## FastAPI
 
-## Contributing
+Important routes:
 
-Contributions are welcome! Please:
+- `POST /runs/series`
+- `POST /runs/outline`
+- `POST /runs/blog`
+- `POST /runs/review`
+- `POST /runs/improve`
+- `GET /runs/{run_id}`
+- `GET /runs/{run_id}/artifacts`
+- `GET /blogs/{part_id}`
+- `POST /approval/{part_id}`
+- `POST /evaluation/blog/{part_id}`
+- `GET /evaluation/blog/{part_id}`
+- `POST /evaluation/series`
+- `POST /feedback`
+- `GET /feedback`
+- `POST /memory/build`
+- `GET /memory/raw-feedback`
+- `GET /memory/skills`
+- `POST /memory/{skill_id}/approve`
+- `POST /memory/{skill_id}/reject`
+- `GET /memory/retrieval-preview`
+- `GET /series/latest`
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+Example:
 
-## License
+```bash
+curl -X POST http://127.0.0.1:8000/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "part_number": 4,
+    "blog_slug": "feature-pipelines",
+    "source_artifact": "Part-4-feature-pipelines",
+    "raw_feedback": "The article needs a stronger synthesis section.",
+    "normalized_issue_type": "clarity_issue",
+    "severity": "medium",
+    "suggested_fix": "Add a synthesis paragraph after dense enumerations.",
+    "reviewer": "editor"
+  }'
+```
 
-[Your License Here]
+## Streamlit Dashboard
 
-## Acknowledgments
+The dashboard is intentionally practical, not decorative. It now supports:
 
-- LangChain team for LangGraph and LangSmith
-- OpenAI for GPT-4
-- Tavily for web search capabilities
+- start a run with or without memory retrieval
+- inspect the latest outline
+- browse artifact bundles by part
+- inspect blog and series evaluations
+- browse the raw feedback log
+- inspect candidate and approved skills
+- approve or reject candidate skills
+- preview retrieved guidance
+- inspect run manifests
+- submit approval decisions
 
-## Support
+## Output Conventions
 
-For issues, questions, or contributions:
-- GitHub Issues: [Link to issues]
-- Documentation: See `docs/` folder
-- Email: [Your Email]
+Examples:
 
----
+- `outputs/series_outline/series_outline.md`
+- `outputs/research/topic_research.md`
+- `outputs/research/Part-1-introduction-research.md`
+- `outputs/drafts/Part-1-introduction.md`
+- `outputs/reviews/Part-1-introduction-review.json`
+- `outputs/final/Part-1-introduction.md`
+- `outputs/assets/Part-1-introduction-assets.md`
+- `outputs/approval/Part-1-introduction-approval.json`
+- `outputs/evaluations/blog/Part-1-introduction-eval.json`
+- `outputs/evaluations/series/series-eval.json`
+- `outputs/evaluations/runs/run-<id>-eval.json`
+- `outputs/manifests/run-<timestamp>-<id>.json`
 
-Built with ❤️ using LangGraph and LangSmith
+## Design Decisions
+
+- `uv` is used for simple and consistent dependency management.
+- Prompt templates live in external files so writing style, review criteria, and retrieved guidance placement can evolve without changing business logic.
+- Approval and memory are separated intentionally to avoid turning a release-control record into an opaque learning store.
+- Retrieved skills are passed into prompts explicitly and logged instead of silently mutating prompt text behind the scenes.
+- Evaluation is a dedicated layer with separate artifacts so generation quality can be inspected independently of approval status.
+- LangSmith is optional and wrapped behind an observability service so local development does not depend on external tracing.
+
+## Testing
+
+Run:
+
+```bash
+uv run pytest
+```
+
+The included test suite covers:
+
+- schema validation
+- review skill-adherence parsing
+- evaluation scoring
+- prompt loading
+- file naming and persistence
+- routing logic
+- approval persistence
+- evaluation persistence
+- raw feedback logging
+- approved skill persistence
+- relevant skill retrieval
+- CLI smoke
+- FastAPI smoke
+- dashboard utility logic
+
+## Limitations
+
+- Blog and series evaluation are currently aggregation-heavy and lean on reviewer outputs instead of a separate evaluator LLM in the main runtime path.
+- Candidate skill extraction is deterministic today; the repository includes the prompt hook for LLM-based extraction but does not yet make that the default execution path.
+- LangSmith integration logs run/node metadata and summaries, but it is not a full checkpointed replay system.
+- API execution is synchronous and local-process oriented, not a distributed job queue.
+- Streamlit actions are intended for local inspection and moderation, not multi-user production deployment.
+
+## Safe and Transparent Learning Behavior
+
+This repository deliberately avoids a black-box memory system.
+
+- raw feedback is inspectable
+- candidate skills are inspectable
+- approved skills are inspectable
+- retrieval previews are inspectable
+- skill usage is logged
+- reviewer skill adherence is inspectable
+
+If the system learns a bad habit, it can be rejected explicitly instead of silently continuing to shape future outputs.

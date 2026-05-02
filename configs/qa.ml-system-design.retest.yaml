@@ -1,0 +1,20 @@
+topic: "ML System Design"
+audience: "intermediate"
+num_parts: 12
+selected_parts:
+  - 1
+  - 6
+  - 12
+enable_review: true
+enable_improve: true
+enable_asset_plan: true
+enable_human_approval: true
+enable_evaluation: true
+enable_memory: true
+use_memory: true
+max_retrieved_skills: 3
+min_word_count: 1800
+max_word_count: 2600
+run_mode: "production"
+approval_required: true
+enable_langsmith: false

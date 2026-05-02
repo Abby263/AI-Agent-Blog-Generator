@@ -1,0 +1,116 @@
+[
+  {
+    "id": "skill-visual-issue-use-purposeful-visuals-instead-of-placeholders",
+    "title": "Use purposeful visuals instead of placeholders",
+    "category": "visual_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "visual_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "When a section explains architecture, tradeoffs, or lifecycle flow, specify a concrete visual with placement, intent, and caption guidance. Never leave placeholder image URLs, captions, or example.com links.",
+    "source_feedback_ids": [
+      "fb-00cee9282d",
+      "fb-2c1c0dde09",
+      "fb-a16516aa54",
+      "fb-319329cee6",
+      "fb-92b52a679b",
+      "fb-7a6475e877",
+      "fb-33020f1318",
+      "fb-1fd21740b4"
+    ],
+    "confidence_score": 0.95,
+    "usage_count": 40,
+    "status": "approved",
+    "active": true,
+    "created_at": "2026-04-09T03:38:24.122567Z",
+    "updated_at": "2026-04-09T10:39:33.987796Z"
+  },
+  {
+    "id": "skill-clarity-issue-open-with-a-concrete-problem-before-definitions",
+    "title": "Open with a concrete problem before definitions",
+    "category": "clarity_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "clarity_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Start introductions with a relatable production problem or operating tension before formal definitions, then connect that setup to the system design concepts that follow.",
+    "source_feedback_ids": [
+      "fb-58c05560b6",
+      "fb-d035781d3a"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 40,
+    "status": "approved",
+    "active": true,
+    "created_at": "2026-04-09T03:39:22.368148Z",
+    "updated_at": "2026-04-09T10:39:33.987794Z"
+  },
+  {
+    "id": "skill-series-continuity-issue-connect-each-part-to-the-series-journey",
+    "title": "Connect each part to the series journey",
+    "category": "series_continuity_issue",
+    "trigger_conditions": {
+      "topic_keywords": [
+        "design",
+        "ml system design",
+        "system"
+      ],
+      "audience_levels": [
+        "intermediate"
+      ],
+      "part_numbers": [],
+      "blog_types": [],
+      "issue_types": [
+        "series_continuity_issue"
+      ],
+      "artifact_types": [
+        "draft",
+        "review",
+        "final"
+      ]
+    },
+    "guidance_text": "Explicitly connect the current part to the previous and next parts in the series so the article reads like a chapter in a book rather than a standalone post.",
+    "source_feedback_ids": [
+      "fb-f45f25cdda",
+      "fb-c04c899f86"
+    ],
+    "confidence_score": 0.75,
+    "usage_count": 40,
+    "status": "approved",
+    "active": true,
+    "created_at": "2026-04-09T03:38:24.122913Z",
+    "updated_at": "2026-04-09T10:39:33.987790Z"
+  }
+]
