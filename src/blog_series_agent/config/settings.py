@@ -126,6 +126,7 @@ class AppSettings(BaseSettings):
     blog_series_web_search_max_results: int = 6
     blog_series_web_fetch_max_chars: int = 5000
     blog_series_web_max_fetches_per_section: int = 3
+    blog_series_cors_origins: str = "*"
 
     def default_model_config(self) -> ModelConfig:
         """Build the default model configuration from environment settings."""

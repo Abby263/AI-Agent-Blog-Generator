@@ -7,10 +7,6 @@ from ..schemas.memory import ReusableSkill
 from ..schemas.review import BlogReviewReport
 from ..schemas.series import (
     AssetPlan,
-    BlogChapterPlan,
-    BlogDraftPackage,
-    BlogResearchPacket,
-    SectionResearchPacket,
     BlogSeriesOutline,
     TopicResearchDossier,
 )
@@ -79,115 +75,6 @@ def render_outline_markdown(outline: BlogSeriesOutline) -> str:
             ]
         )
     return "\n".join(lines)
-
-
-def render_blog_research_markdown(packet: BlogResearchPacket) -> str:
-    return "\n".join(
-        [
-            f"# Blog Research: Part {packet.part_number} - {packet.title}",
-            "",
-            "## Summary",
-            packet.summary,
-            "",
-            "## Core Questions",
-            *[f"- {item}" for item in packet.core_questions],
-            "",
-            "## Examples",
-            *[f"- {item}" for item in packet.examples],
-            "",
-            "## System Design Insights",
-            *[f"- {item}" for item in packet.system_design_insights],
-            "",
-            "## Practical References",
-            *[
-                "- "
-                + _format_source_markdown(note.title, note.url, f" ({note.source_type})")
-                + f": {note.note}"
-                for note in packet.practical_references
-            ],
-        ]
-    )
-
-
-def render_section_research_markdown(packet: SectionResearchPacket) -> str:
-    return "\n".join(
-        [
-            f"# Section Research: {packet.section_heading}",
-            "",
-            "## Purpose",
-            packet.section_purpose,
-            "",
-            "## Summary",
-            packet.research_summary,
-            "",
-            "## Supporting Points",
-            *[f"- {item}" for item in packet.supporting_points],
-            "",
-            "## Sources",
-            *[
-                "- "
-                + _format_source_markdown(
-                    note.title,
-                    note.url,
-                    f" ({note.source_type}, {note.year or 'year unknown'})",
-                )
-                + f": {note.note}"
-                for note in packet.source_notes
-            ],
-            "",
-            "## Visual Spec",
-            packet.visual_spec or "None",
-            "",
-            "## Image Asset",
-            f"- **Image URL:** {packet.image_url or 'None'}",
-            f"- **Image Credit URL:** {packet.image_credit_url or 'None'}",
-            f"- **Image Credit Text:** {packet.image_credit_text or 'None'}",
-            f"- **Image Alt Text:** {packet.image_alt_text or 'None'}",
-            "",
-            "## Code Example",
-            f"- **Title:** {packet.code_example_title or 'None'}",
-            f"- **Language:** {packet.code_example_language or 'None'}",
-            packet.code_example or "None",
-            f"- **Notes:** {packet.code_example_notes or 'None'}",
-        ]
-    )
-
-
-def render_blog_plan_markdown(plan: BlogChapterPlan) -> str:
-    lines = [
-        f"# Blog Plan: Part {plan.part_number} - {plan.title}",
-        "",
-        f"**Subtitle:** {plan.subtitle}",
-        "",
-        "## Chapter Summary",
-        plan.chapter_summary,
-        "",
-        "## Series Continuity",
-        f"- Previous callback: {plan.previous_part_callback or 'None'}",
-        f"- Next teaser: {plan.next_part_teaser or 'None'}",
-        "",
-        "## Table of Contents Plan",
-    ]
-    for section in plan.section_plans:
-        lines.extend(
-            [
-                f"### {section.heading}",
-                f"- **Purpose:** {section.purpose}",
-                f"- **Target Words:** {section.target_words}",
-                f"- **Requires Visual:** {section.requires_visual}",
-                f"- **Key Points:** {', '.join(section.key_points) or 'None'}",
-                f"- **Subsections:** {', '.join(section.subsections) or 'None'}",
-                "",
-            ]
-        )
-    return "\n".join(lines)
-
-
-def render_section_draft_markdown(draft: BlogDraftPackage, section_slug: str) -> str:
-    for section in draft.section_drafts:
-        if section.section_slug == section_slug:
-            return section.markdown
-    return ""
 
 
 def render_review_markdown(report: BlogReviewReport) -> str:

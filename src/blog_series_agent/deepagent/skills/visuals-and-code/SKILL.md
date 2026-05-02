@@ -2,7 +2,8 @@
 name: visuals-and-code
 description: Add useful teaching visuals and working code/config examples.
 stages:
-  - section_research
+  - research
+  - plan
   - draft
   - final
   - asset

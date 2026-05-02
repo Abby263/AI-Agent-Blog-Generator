@@ -2,6 +2,20 @@
 
 `blog-series-agent` is a production-oriented starter repository for generating long-form technical blog series with a LangGraph workflow. It produces book-like Medium articles that move from fundamentals to production realities, adds a formal human approval gate, evaluates outputs systematically, and learns from repeated feedback through explicit reusable guidance.
 
+## About
+
+This repository is an agentic content operations system for deep technical publishing. It combines:
+
+- LangGraph orchestration for stateful generation, review, evaluation, memory, and approval routing
+- DeepAgents for filesystem-backed research, planning, drafting, visual planning, and package QA
+- FastAPI endpoints for triggering and inspecting runs
+- Streamlit for local artifact inspection and moderation
+- a Next.js/Vercel UI for a hosted control plane
+
+Live UI: [ai-agent-blog-generator-app.vercel.app](https://ai-agent-blog-generator-app.vercel.app)
+
+The primary use case is generating grounded, chapter-style technical blog series for topics such as ML System Design, AI Agents, RAG, LLM Evaluation, and Data Engineering.
+
 The system accepts a request such as:
 
 ```bash
@@ -27,7 +41,7 @@ and produces:
 The repository uses two LangGraph workflows plus service-level evaluation and memory layers:
 
 - `outline graph`: topic research -> series architect
-- `blog graph`: blog research -> retrieve approved skills -> writer -> reviewer -> improver -> asset planner -> evaluation -> memory update -> approval
+- `blog graph`: retrieve approved skills -> DeepAgents content builder -> length check -> reviewer -> improver -> asset planner -> evaluation -> memory update -> approval
 
 The outer service layer orchestrates:
 
@@ -50,31 +64,45 @@ LangGraph is used for the stateful parts of the workflow where routing matters:
 
 The service layer handles run manifests, disk persistence, cross-part aggregation, API/dashboard integration, and auditable memory retrieval.
 
-## DeepAgents-Style Profile
+## DeepAgents Content Builder
 
-The pipeline now follows the same filesystem-primitives pattern as the
-LangChain DeepAgents content-builder example:
+Blog generation uses the official `deepagents` package and
+the same filesystem-primitives pattern as the LangChain DeepAgents
+content-builder example:
 
 - `src/blog_series_agent/deepagent/AGENTS.md` contains always-on writing memory, voice, and completion criteria.
-- `src/blog_series_agent/deepagent/skills/*/SKILL.md` contains reusable workflows loaded by stage, such as series planning, section grounding, visuals, and code examples.
-- `src/blog_series_agent/deepagent/subagents.yaml` declares the topic researcher, chapter researcher, section researcher, writer, and reviewer roles.
+- `src/blog_series_agent/deepagent/skills/*/SKILL.md` contains reusable workflows loaded by stage, such as series planning, artifact contracts, section grounding, visuals/code, and QA review gates.
+- `src/blog_series_agent/deepagent/subagents.yaml` declares specialized topic, chapter, section, visual, code, writer, and reviewer roles.
+- `ResearchToolkit.as_langchain_tools()` exposes `research_sources`, `web_search`, and `fetch_url`. `research_sources` is the preferred DeepAgents tool because it performs search, credibility ranking, bounded fetching, and image metadata extraction in one call.
 
-These files do not replace LangGraph. They are loaded by `DeepAgentProfileLoader`
-and injected explicitly into the relevant research, planning, writing, review,
-improvement, and asset prompts. This keeps guidance visible and auditable: the
-agent receives named filesystem guidance instead of hidden prompt mutation.
+These files are copied into a per-run DeepAgents workspace under
+`outputs/deepagent_workspaces/<run_id>/...`. The content builder then writes:
+
+- `research.md`
+- `plan.md`
+- `draft.md`
+- `assets.md`
+- `manifest.json`
+
+The canonical artifacts are copied back into the normal `outputs/research/`,
+`outputs/blog_plans/`, `outputs/drafts/`, and `outputs/assets/` folders so API,
+dashboard, review, evaluation, memory, and approval flows continue to work.
+
+This removes the previous pattern where topic research, blog research, and every
+section research step each ran its own custom ReAct loop. Tool use now lives in
+one DeepAgents coordinator, while LangGraph keeps explicit release gates.
+
+The DeepAgents task explicitly passes retrieved approved skill IDs and guidance
+into the builder context. The generated `manifest.json` must preserve those
+skill IDs along with source URLs, image URLs, section names, and any missing
+evidence flags.
 
 ## Blog Authoring Flow
 
-Each blog is now generated in three explicit stages:
-
-- series architect decides the ordered list of blog chapters
-- per-blog chapter planner creates a `blog_plans/Part-X-...-plan.{json,md}` artifact with the table of contents and section targets
-- section research gathers evidence for each planned section, preserving exact source links, source-image metadata when available, and implementation examples
-- section writer makes multiple LLM calls, one per planned section, before assembling the full Markdown article
-- section improver revises each section, preserving clickable sources, image credits, and syntactically valid code/config blocks
-
-This keeps generation inspectable and makes it easier to enforce chapter structure and minimum article length.
+- the series architect decides the ordered list of blog chapters
+- approved reusable skills are retrieved explicitly and passed as visible guidance
+- the DeepAgents content builder researches, plans, and drafts the chapter in one filesystem-backed run
+- review, improvement, asset planning, evaluation, memory update, and approval stay as separate LangGraph gates
 
 ## Deterministic Quality Gates
 
@@ -164,7 +192,7 @@ Approval history is release-oriented:
 
 Memory is learning-oriented:
 
-- stored under `data/memory/`
+- stored under `outputs/memory/` by the app wiring so normal runs do not dirty tracked repository files
 - exists to improve future generations
 - is never treated as approval state
 - must remain inspectable and auditable
@@ -179,8 +207,8 @@ The implemented learning loop uses two explicit memory layers plus a candidate-s
 
 Source of truth for learning inputs:
 
-- `data/memory/raw_feedback_log.jsonl`
-- `data/memory/raw_feedback_log.md`
+- `outputs/memory/raw_feedback_log.jsonl`
+- `outputs/memory/raw_feedback_log.md`
 
 Each entry includes:
 
@@ -200,8 +228,8 @@ Each entry includes:
 
 Only approved reusable guidance influences future runs by default:
 
-- `data/memory/approved_skills.json`
-- `data/memory/approved_skills.md`
+- `outputs/memory/approved_skills.json`
+- `outputs/memory/approved_skills.md`
 
 Each approved skill includes:
 
@@ -222,7 +250,7 @@ Each approved skill includes:
 
 Candidate skills are staged separately before promotion:
 
-- `data/memory/skill_candidates.json`
+- `outputs/memory/skill_candidates.json`
 
 This is not treated as the active memory layer. It is a review buffer for human control.
 
@@ -315,7 +343,7 @@ This is logged and inspectable through:
 
 - run artifacts
 - retrieval preview endpoints and CLI
-- `data/memory/retrieval_log.jsonl`
+- `outputs/memory/retrieval_log.jsonl`
 - LangSmith metadata when enabled
 
 ## Reviewer Skill-Adherence Checks
@@ -391,6 +419,7 @@ Requirements:
 - Python 3.11+
 - `uv`
 - an OpenAI-compatible API key for live generation
+- Node.js 20+ for the Next.js web UI
 
 Install:
 
@@ -416,6 +445,11 @@ Key environment variables:
 - `BLOG_SERIES_LANGSMITH_PROJECT`
 - `BLOG_SERIES_LANGSMITH_TRACE_PROMPTS`
 - `BLOG_SERIES_LANGSMITH_TRACE_ARTIFACTS`
+- `BLOG_SERIES_ENABLE_WEB_SEARCH`
+- `BLOG_SERIES_WEB_SEARCH_MAX_RESULTS`
+- `BLOG_SERIES_WEB_FETCH_MAX_CHARS`
+- `BLOG_SERIES_WEB_MAX_FETCHES_PER_SECTION`
+- `BLOG_SERIES_CORS_ORIGINS`
 
 ## CLI
 
@@ -423,6 +457,12 @@ Generate a full series:
 
 ```bash
 uv run python -m blog_series_agent run --topic "ML System Design" --audience intermediate --parts 12 --use-memory true
+```
+
+Enable grounded web search/fetch tools:
+
+```bash
+uv run python -m blog_series_agent run --topic "ML System Design" --audience intermediate --parts 12 --web-search
 ```
 
 Generate only the outline:
@@ -561,6 +601,43 @@ The dashboard is intentionally practical, not decorative. It now supports:
 - preview retrieved guidance
 - inspect run manifests
 - submit approval decisions
+
+## Next.js Web UI
+
+The `frontend/` directory contains a Vercel-ready control-plane UI. It supports:
+
+- configuring the FastAPI base URL
+- launching series, outline, and single-blog runs through async API endpoints
+- polling background task status
+- inspecting the latest run manifest and artifact counts
+- loading blog artifact bundles by part ID
+- submitting human approval decisions
+- browsing approved and candidate reusable skills
+- previewing memory retrieval for a topic/part
+
+Run locally:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Deploy from `frontend/`:
+
+```bash
+npx vercel --prod
+```
+
+The Vercel project is named `ai-agent-blog-generator`. The current stable UI alias is [ai-agent-blog-generator-app.vercel.app](https://ai-agent-blog-generator-app.vercel.app).
+
+Set `NEXT_PUBLIC_API_BASE_URL` in Vercel to the hosted FastAPI backend. The UI also exposes an editable API URL field for local or temporary backend targets.
+
+## License
+
+This project is licensed for noncommercial use under the PolyForm Noncommercial License 1.0.0. See `LICENSE` and `NOTICE`.
+
+Commercial use requires a separate written license. See `COMMERCIAL.md`.
 
 ## Output Conventions
 

@@ -27,17 +27,22 @@ def _load_or_build_config(
     parts: int,
     part: int | None = None,
     use_memory: bool | None = None,
+    enable_web_search: bool | None = None,
 ) -> SeriesRunConfig:
     settings = get_settings()
     if config_path:
         loaded = load_run_config(Path(config_path))
         if use_memory is not None:
             loaded.use_memory = use_memory
+        if enable_web_search is not None:
+            loaded.enable_web_search = enable_web_search
         return loaded
     selected_parts = [part] if part is not None else []
     overrides = settings.default_run_overrides()
     if use_memory is not None:
         overrides["use_memory"] = use_memory
+    if enable_web_search is not None:
+        overrides["enable_web_search"] = enable_web_search
     return SeriesRunConfig(
         topic=topic,
         audience=audience,
@@ -78,6 +83,7 @@ def run(
     parts: int = typer.Option(12, help="Number of parts."),
     config: str = typer.Option("", help="Optional YAML config file."),
     use_memory: bool = typer.Option(True, help="Whether to retrieve approved skills during generation."),
+    web_search: bool = typer.Option(False, help="Enable grounded web search/fetch tools."),
 ) -> None:
     """Generate a full series."""
 
@@ -89,6 +95,7 @@ def run(
         audience=audience,
         parts=parts,
         use_memory=use_memory,
+        enable_web_search=web_search,
     )
     manifest = pipeline.run_series(run_config)
     console.print(f"Run complete: {manifest.run_id} [{manifest.status}]")
@@ -99,12 +106,19 @@ def outline(
     topic: str = typer.Option(..., help="Series topic."),
     audience: str = typer.Option("intermediate", help="Target audience."),
     parts: int = typer.Option(12, help="Number of parts."),
+    web_search: bool = typer.Option(False, help="Enable grounded web search/fetch tools."),
 ) -> None:
     """Generate only the series outline."""
 
     configure_logging(get_settings().blog_series_log_level)
     pipeline = _build_pipeline()
-    run_config = _load_or_build_config(config_path=None, topic=topic, audience=audience, parts=parts)
+    run_config = _load_or_build_config(
+        config_path=None,
+        topic=topic,
+        audience=audience,
+        parts=parts,
+        enable_web_search=web_search,
+    )
     manifest = pipeline.run_outline(run_config)
     console.print(f"Outline generated: {manifest.run_id}")
 
@@ -116,6 +130,7 @@ def write(
     audience: str = typer.Option("intermediate", help="Target audience."),
     parts: int = typer.Option(12, help="Number of parts."),
     use_memory: bool = typer.Option(True, help="Whether to retrieve approved skills during generation."),
+    web_search: bool = typer.Option(False, help="Enable grounded web search/fetch tools."),
 ) -> None:
     """Generate a specific blog."""
 
@@ -128,6 +143,7 @@ def write(
         parts=parts,
         part=part,
         use_memory=use_memory,
+        enable_web_search=web_search,
     )
     manifest = pipeline.run_blog(run_config, part_number=part)
     console.print(f"Blog generated: {manifest.run_id}")
@@ -140,6 +156,7 @@ def resume(
     audience: str = typer.Option("intermediate", help="Target audience."),
     parts: int = typer.Option(12, help="Number of parts."),
     use_memory: bool = typer.Option(True, help="Whether to retrieve approved skills during generation."),
+    web_search: bool = typer.Option(False, help="Enable grounded web search/fetch tools."),
 ) -> None:
     """Resume a previously failed or partially completed series run."""
 
@@ -151,6 +168,7 @@ def resume(
         audience=audience,
         parts=parts,
         use_memory=use_memory,
+        enable_web_search=web_search,
     )
     manifest = pipeline.resume_series(run_id, run_config)
     console.print(f"Resume complete: {manifest.run_id} [{manifest.status}]")

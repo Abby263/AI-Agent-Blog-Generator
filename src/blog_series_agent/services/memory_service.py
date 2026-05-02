@@ -34,7 +34,7 @@ from ..utils.slug import slugify
 class MemoryService:
     """Manages raw feedback and approved reusable skills."""
 
-    def __init__(self, root_dir: str | Path = "data/memory") -> None:
+    def __init__(self, root_dir: str | Path = "outputs/memory") -> None:
         self.root_dir = Path(root_dir)
         ensure_directory(self.root_dir)
         self.raw_feedback_log_path = self.root_dir / "raw_feedback_log.jsonl"

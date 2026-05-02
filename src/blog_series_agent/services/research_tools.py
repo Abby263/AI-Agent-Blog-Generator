@@ -1,7 +1,8 @@
 """Real-world research tools: web search and URL fetching.
 
-These tools are called by the LLM during agentic research loops, giving agents
-access to live information the same way Claude Code uses bash/grep/read.
+These tools provide bounded, auditable live research. The default pipeline uses
+them through DeepAgents or deterministic query batches instead of many nested
+custom ReAct loops.
 """
 
 from __future__ import annotations
@@ -13,6 +14,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+try:  # pragma: no cover - import availability depends on environment
+    from duckduckgo_search import DDGS  # type: ignore[import]
+except Exception:  # pragma: no cover
+    DDGS = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Result schemas
@@ -81,8 +87,8 @@ class ResearchToolResult:
 def web_search(query: str, max_results: int = 6) -> list[WebSearchHit]:
     """Search the web using DuckDuckGo. Returns a ranked list of hits."""
     try:
-        from duckduckgo_search import DDGS  # type: ignore[import]
-
+        if DDGS is None:
+            return []
         with DDGS() as ddgs:
             raw = list(ddgs.text(query, max_results=max_results))
         hits: list[WebSearchHit] = []
@@ -115,7 +121,7 @@ def fetch_page_text(url: str, max_chars: int = 5000) -> FetchedPage:
 
         headers = {
             "User-Agent": (
-                "Mozilla/5.0 (compatible; BlogResearchAgent/1.0; "
+                "Mozilla/5.0 (compatible; BlogSeriesAgent/1.0; "
                 "+https://github.com/blog-series-agent)"
             )
         }
@@ -192,9 +198,9 @@ class ResearchToolkit:
     """
     Bundles web_search and fetch_page_text into an interface that agents call.
 
-    This mirrors how Claude Code exposes Bash/Grep/Read to the LLM: the model
-    decides what to look for, the toolkit executes it, and results flow back
-    into the context window.
+    The toolkit is intentionally small: callers either expose these functions
+    to DeepAgents, or run bounded query batches and inject the evidence into
+    structured synthesis prompts.
     """
 
     def __init__(
@@ -268,6 +274,16 @@ class ResearchToolkit:
 
         toolkit = self
 
+        def _research_sources(query: str, fetch_top_n: int | None = None) -> str:
+            """Search, rank, fetch, and format credible sources for one section or chapter."""
+            bounded_fetches = (
+                toolkit.max_fetches_per_section
+                if fetch_top_n is None
+                else max(0, min(fetch_top_n, toolkit.max_fetches_per_section))
+            )
+            result = toolkit.research_queries([query], fetch_top_n=bounded_fetches)
+            return result.as_context_block()
+
         def _web_search(query: str) -> str:
             """Search the web for current technical information, papers, engineering blogs, and documentation."""
             hits = toolkit.search(query)
@@ -293,6 +309,15 @@ class ResearchToolkit:
             return "\n".join(lines)
 
         return [
+            StructuredTool.from_function(
+                func=_research_sources,
+                name="research_sources",
+                description=(
+                    "Search, rank, fetch, and summarize credible sources for one chapter or section. "
+                    "Returns exact source URLs, fetched evidence, and primary image metadata when available. "
+                    "Prefer this over separate search/fetch calls when starting section research."
+                ),
+            ),
             StructuredTool.from_function(
                 func=_web_search,
                 name="web_search",
