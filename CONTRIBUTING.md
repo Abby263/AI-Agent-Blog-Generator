@@ -40,4 +40,6 @@ https://ai-agent-blog-generator-app.vercel.app
 
 ## Licensing
 
-This project is licensed for noncommercial use under the PolyForm Noncommercial License 1.0.0. Commercial use is not granted by the repository license. See `LICENSE`, `NOTICE`, and `COMMERCIAL.md`.
+This project is licensed for noncommercial use under the PolyForm Noncommercial License 1.0.0. Commercial use is not granted by the repository license. See `LICENSE`, `NOTICE`, `COMMERCIAL.md`, and `LICENSE_POLICY.md`.
+
+Do not switch the repository to AGPL to enforce commercial restrictions. AGPL permits commercial use; this project intentionally uses a noncommercial source-available license.
