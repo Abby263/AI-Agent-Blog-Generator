@@ -75,4 +75,6 @@ Vercel runs:
 
 ## Noncommercial License
 
-Commercial use is prohibited unless a separate written commercial license is granted. The controlling license is `LICENSE`.
+Commercial use is prohibited unless a separate written commercial license is granted. The controlling public repository license is PolyForm Noncommercial License 1.0.0 in `LICENSE`.
+
+Do not replace this with AGPL if the goal is to restrict commercial use. AGPL is a network-copyleft license, but it still permits commercial usage. See `COMMERCIAL.md` and `LICENSE_POLICY.md`.

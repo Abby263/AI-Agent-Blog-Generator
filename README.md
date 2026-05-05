@@ -10,6 +10,11 @@ Package name: `blog-series-agent`
 
 License: PolyForm Noncommercial License 1.0.0. Commercial use requires a separate written license.
 
+AGPL note: this repository intentionally does **not** use AGPL. AGPL is strong
+network copyleft, but it still allows commercial use. This project uses PolyForm
+Noncommercial because the policy goal is to prohibit commercial usage unless a
+separate written commercial license is granted.
+
 ## Product Summary
 
 AI Agent Blog Generator is a content operations system for long-form technical
@@ -930,6 +935,11 @@ See:
 - `LICENSE`
 - `NOTICE`
 - `COMMERCIAL.md`
+- `LICENSE_POLICY.md`
 
 Commercial use is not permitted unless a separate written commercial license is
 granted.
+
+AGPL, GPL, MIT, Apache, and BSD-style licenses are not used here because they
+permit commercial usage. PolyForm Noncommercial is the controlling public
+repository license for noncommercial use.
