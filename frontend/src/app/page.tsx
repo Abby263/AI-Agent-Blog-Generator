@@ -121,6 +121,35 @@ const approvalOptions = [
   "rejected",
 ];
 
+const inspirationCards = [
+  {
+    title: "Workflow canvas",
+    source: "Dify / Flowise",
+    detail: "Show the agent pipeline as a visible staged system, not a hidden form submit.",
+  },
+  {
+    title: "Trace + eval mindset",
+    source: "LangSmith",
+    detail: "Put run health, scores, feedback, and quality signals next to artifacts.",
+  },
+  {
+    title: "Research to publish",
+    source: "StoryDesk / Jasper",
+    detail: "Treat chapters as source-backed content packages that require approval before release.",
+  },
+];
+
+const workflowStages = [
+  "Research",
+  "Series Plan",
+  "Draft",
+  "Review",
+  "Improve",
+  "Assets",
+  "Approval",
+  "Publish",
+];
+
 export default function Home() {
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [form, setForm] = useState<LaunchForm>(initialForm);
@@ -355,43 +384,53 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f4efe6] text-[#211d18]">
-      <div className="pointer-events-none fixed inset-0 opacity-80">
-        <div className="absolute left-[-10%] top-[-20%] h-[520px] w-[520px] rounded-full bg-[#e6693f]/25 blur-3xl" />
-        <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-[#125d58]/20 blur-3xl" />
-        <div className="absolute left-[34%] top-[18%] h-[380px] w-[380px] rounded-full bg-[#f2bd52]/20 blur-3xl" />
+    <main className="min-h-screen overflow-hidden bg-[var(--background)] text-[#211d18]">
+      <div className="pointer-events-none fixed inset-0 opacity-90">
+        <div className="absolute left-[-12%] top-[-18%] h-[560px] w-[560px] rounded-full bg-[#df5d36]/24 blur-3xl" />
+        <div className="absolute bottom-[-24%] right-[-12%] h-[680px] w-[680px] rounded-full bg-[#0d615d]/22 blur-3xl" />
+        <div className="absolute left-[28%] top-[18%] h-[430px] w-[430px] rounded-full bg-[#efb749]/24 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10">
-        <header className="grid gap-6 rounded-[2rem] border border-[#211d18]/10 bg-[#fffaf0]/80 p-6 shadow-[0_24px_80px_rgba(33,29,24,0.12)] backdrop-blur md:grid-cols-[1.3fr_0.7fr] md:p-8">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-6 sm:px-8 lg:px-10">
+        <nav className="flex flex-wrap items-center justify-between gap-4 rounded-full border border-[#211d18]/10 bg-[#fffaf0]/70 px-5 py-3 shadow-[0_16px_50px_rgba(33,29,24,0.08)] backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-[#211d18] text-sm font-black text-[#fffaf0]">
+              BG
+            </div>
+            <div>
+              <p className="text-sm font-black">Agentic Blog Generator</p>
+              <p className="text-xs text-[#74695d]">LangGraph · DeepAgents · Human gates</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.18em] text-[#6b5f52]">
+            <span className="rounded-full bg-[#125d58]/10 px-3 py-2 text-[#125d58]">Research-backed</span>
+            <span className="rounded-full bg-[#e6693f]/10 px-3 py-2 text-[#9b442c]">Approval-first</span>
+            <span className="rounded-full bg-[#f2bd52]/20 px-3 py-2 text-[#765113]">Memory-visible</span>
+          </div>
+        </nav>
+
+        <header className="hero-shell grid gap-6 p-6 md:grid-cols-[1.35fr_0.65fr] md:p-8">
           <div>
-            <p className="mb-5 inline-flex rounded-full border border-[#211d18]/15 px-4 py-1 text-xs font-bold uppercase tracking-[0.24em] text-[#9b442c]">
-              LangGraph + DeepAgents Control Plane
+            <p className="mb-5 inline-flex rounded-full border border-[#211d18]/15 bg-[#fffaf0]/70 px-4 py-1 text-xs font-black uppercase tracking-[0.24em] text-[#9b442c]">
+              Content operations cockpit
             </p>
-            <h1 className="max-w-4xl text-4xl font-black tracking-[-0.04em] text-[#211d18] sm:text-6xl">
-              Build grounded technical blog series with human release gates.
+            <h1 className="max-w-4xl text-4xl font-black tracking-[-0.055em] text-[#211d18] sm:text-6xl">
+              Generate book-like technical series with visible agent work.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#5f554a]">
-              Launch runs, inspect artifacts, review evaluation scores, approve final
-              chapters, and audit the reusable skills that guide future generations.
+              Inspired by workflow builders, observability tools, and content operation
+              platforms: launch a run, inspect every artifact, evaluate quality, apply
+              reusable skills, then approve chapters for publishing.
             </p>
+            <div className="mt-7 grid gap-3 md:grid-cols-3">
+              {inspirationCards.map((card) => (
+                <InspirationCard key={card.title} {...card} />
+              ))}
+            </div>
           </div>
-          <div className="rounded-[1.5rem] bg-[#211d18] p-5 text-[#fffaf0]">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f2bd52]">
-              API Endpoint
-            </p>
-            <label className="mt-4 block text-sm text-[#efe4cf]">
-              FastAPI base URL
-              <input
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 font-mono text-sm text-white outline-none ring-[#f2bd52] focus:ring-2"
-                value={apiBase}
-                onChange={(event) => setApiBase(event.target.value)}
-              />
-            </label>
-            <p className="mt-3 text-xs leading-5 text-[#cfc4ad]">
-              For local use, run `uv run python -m blog_series_agent api`. For
-              deployed use, point this at your hosted FastAPI backend.
-            </p>
+          <div className="space-y-4">
+            <ApiEndpointCard apiBase={apiBase} setApiBase={setApiBase} />
+            <ContractCard />
           </div>
         </header>
 
@@ -402,6 +441,17 @@ export default function Home() {
             {error && <StatusPill tone="red" label="Error" value={error} />}
           </section>
         )}
+
+        <section className="grid gap-6 lg:grid-cols-[1fr_390px]">
+          <WorkflowMap activeTask={activeTask} manifest={manifest} />
+          <ReadinessPanel
+            manifest={manifest}
+            latest={latest}
+            blogArtifacts={blogArtifacts}
+            memory={memory}
+            feedbackCount={feedback.length}
+          />
+        </section>
 
         <section className="grid gap-6 lg:grid-cols-[420px_1fr]">
           <Panel title="Start a Run" eyebrow="Generation">
@@ -708,6 +758,170 @@ export default function Home() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ApiEndpointCard({
+  apiBase,
+  setApiBase,
+}: {
+  apiBase: string;
+  setApiBase: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-[1.5rem] bg-[#211d18] p-5 text-[#fffaf0] shadow-[0_20px_60px_rgba(33,29,24,0.22)]">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f2bd52]">
+        API Endpoint
+      </p>
+      <label className="mt-4 block text-sm text-[#efe4cf]">
+        FastAPI base URL
+        <input
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 font-mono text-sm text-white outline-none ring-[#f2bd52] focus:ring-2"
+          value={apiBase}
+          onChange={(event) => setApiBase(event.target.value)}
+        />
+      </label>
+      <p className="mt-3 text-xs leading-5 text-[#cfc4ad]">
+        For local use, run `uv run python -m blog_series_agent api`. For deployed
+        use, point this at a hosted FastAPI backend.
+      </p>
+    </div>
+  );
+}
+
+function ContractCard() {
+  const items = [
+    "Clickable sources per section",
+    "Draft, review, final, assets",
+    "Evaluation and skill adherence",
+    "Human approval before publishing",
+  ];
+  return (
+    <div className="rounded-[1.5rem] border border-[#211d18]/10 bg-[#fffaf0]/78 p-5 shadow-[0_18px_50px_rgba(33,29,24,0.10)]">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#9b442c]">
+        Artifact contract
+      </p>
+      <div className="mt-4 space-y-3">
+        {items.map((item) => (
+          <div key={item} className="flex items-center gap-3 text-sm font-bold text-[#463d34]">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#125d58] text-xs text-white">
+              ✓
+            </span>
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InspirationCard({
+  title,
+  source,
+  detail,
+}: {
+  title: string;
+  source: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-[#211d18]/10 bg-[#fffaf0]/72 p-4 shadow-[0_12px_35px_rgba(33,29,24,0.08)]">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9b442c]">{source}</p>
+      <p className="mt-2 text-base font-black text-[#211d18]">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-[#63584d]">{detail}</p>
+    </div>
+  );
+}
+
+function WorkflowMap({
+  activeTask,
+  manifest,
+}: {
+  activeTask: TaskSummary | null;
+  manifest: RunManifest | null;
+}) {
+  const completed = manifest?.status === "completed";
+  const running = activeTask && !["completed", "failed"].includes(activeTask.status);
+  const activeIndex = completed ? workflowStages.length - 1 : running ? 2 : 0;
+
+  return (
+    <section className="workflow-panel">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#9b442c]">
+            Agent workflow
+          </p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">
+            From grounded research to publish-ready chapter
+          </h2>
+        </div>
+        <span className="rounded-full bg-[#211d18] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#fffaf0]">
+          {activeTask?.status ?? manifest?.status ?? "idle"}
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        {workflowStages.map((stage, index) => {
+          const state = completed || index < activeIndex ? "done" : index === activeIndex ? "active" : "queued";
+          return (
+            <div key={stage} className={`workflow-node workflow-node-${state}`}>
+              <span className="font-mono text-xs">{String(index + 1).padStart(2, "0")}</span>
+              <p className="mt-2 font-black">{stage}</p>
+              <p className="mt-1 text-xs">
+                {state === "done" ? "Complete" : state === "active" ? "In motion" : "Queued"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ReadinessPanel({
+  manifest,
+  latest,
+  blogArtifacts,
+  memory,
+  feedbackCount,
+}: {
+  manifest: RunManifest | null;
+  latest: SeriesLatestResponse | null;
+  blogArtifacts: BlogArtifactsResponse | null;
+  memory: MemorySkillsResponse | null;
+  feedbackCount: number;
+}) {
+  const approvedSkills = memory?.approved_skills.length ?? 0;
+  const candidateSkills = memory?.candidate_skills.length ?? 0;
+  const approvalStatus = blogArtifacts?.approval?.status ?? "not loaded";
+  const seriesScore = latest?.latest_series_evaluation?.overall_score;
+  const blogScore = blogArtifacts?.evaluation?.overall_score;
+
+  return (
+    <section className="rounded-[2rem] border border-[#211d18]/10 bg-[#211d18] p-5 text-[#fffaf0] shadow-[0_24px_70px_rgba(33,29,24,0.18)]">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f2bd52]">
+        Release readiness
+      </p>
+      <h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">Quality cockpit</h2>
+      <div className="mt-5 grid gap-3">
+        <ReadinessItem label="Run state" value={manifest?.status ?? "No manifest"} />
+        <ReadinessItem label="Series eval" value={seriesScore === undefined ? "Not loaded" : `${seriesScore}/10`} />
+        <ReadinessItem label="Blog eval" value={blogScore === undefined ? "Not loaded" : `${blogScore}/10`} />
+        <ReadinessItem label="Approval" value={approvalStatus} />
+        <ReadinessItem label="Approved skills" value={String(approvedSkills)} />
+        <ReadinessItem label="Candidate skills" value={String(candidateSkills)} />
+        <ReadinessItem label="Raw feedback" value={String(feedbackCount)} />
+      </div>
+    </section>
+  );
+}
+
+function ReadinessItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-3 text-sm">
+      <span className="text-[#d9cfbb]">{label}</span>
+      <span className="font-mono font-black text-[#fffaf0]">{value}</span>
+    </div>
   );
 }
 
