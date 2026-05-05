@@ -39,7 +39,7 @@ https://ai-agent-blog-generator-app.vercel.app
 
 Project settings:
 
-- Git repository: `Abby263/AI-Agent-Blog-Generator`
+- Git repository: `Abby263/ai-agent-blog-generator`
 - Production branch: `main`
 - Root directory: `frontend`
 - Framework: `Next.js`
