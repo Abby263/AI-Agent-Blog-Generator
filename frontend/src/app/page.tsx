@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from "react";
 
 const DEFAULT_API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const GITHUB_REPOSITORY_URL = "https://github.com/Abby263/ai-agent-blog-generator";
 
 type ArtifactRecord = {
   artifact_id?: string;
@@ -402,10 +403,20 @@ export default function Home() {
               <p className="text-xs text-[#74695d]">LangGraph · DeepAgents · Human gates</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.18em] text-[#6b5f52]">
+          <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-black uppercase tracking-[0.18em] text-[#6b5f52]">
             <span className="rounded-full bg-[#125d58]/10 px-3 py-2 text-[#125d58]">Research-backed</span>
             <span className="rounded-full bg-[#e6693f]/10 px-3 py-2 text-[#9b442c]">Approval-first</span>
             <span className="rounded-full bg-[#f2bd52]/20 px-3 py-2 text-[#765113]">Memory-visible</span>
+            <a
+              aria-label="View the AI Agent Blog Generator repository on GitHub"
+              className="inline-flex items-center gap-2 rounded-full bg-[#211d18] px-4 py-2 text-[#fffaf0] shadow-[0_10px_24px_rgba(33,29,24,0.16)] transition hover:-translate-y-0.5 hover:bg-[#342d26]"
+              href={GITHUB_REPOSITORY_URL}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <GithubIcon />
+              GitHub
+            </a>
           </div>
         </nav>
 
@@ -786,6 +797,18 @@ function ApiEndpointCard({
         use, point this at a hosted FastAPI backend.
       </p>
     </div>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+      <path
+        clipRule="evenodd"
+        d="M12 2C6.48 2 2 6.58 2 12.23c0 4.51 2.87 8.34 6.84 9.69.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.66.35-1.11.64-1.37-2.22-.26-4.55-1.14-4.55-5.05 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05A9.32 9.32 0 0 1 12 6.92c.85 0 1.71.12 2.51.35 1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.92-2.34 4.78-4.57 5.04.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.81 0 .27.18.59.69.49A10.1 10.1 0 0 0 22 12.23C22 6.58 17.52 2 12 2Z"
+        fillRule="evenodd"
+      />
+    </svg>
   );
 }
 
