@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { AppProvider } from "@/lib/context";
 import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 import { ToastViewport } from "@/components/toast-viewport";
 
 export const metadata: Metadata = {
@@ -18,15 +19,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[var(--color-canvas)] text-[var(--color-ink-900)]">
+      <body className="min-h-screen bg-canvas text-ink-900">
         <AppProvider>
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 min-w-0">
-              <div className="mx-auto w-full max-w-6xl px-5 py-8 md:px-8 md:py-10">
-                {children}
-              </div>
-            </main>
+            <div className="flex-1 min-w-0 flex flex-col">
+              <Topbar />
+              <main className="flex-1 min-w-0">
+                <div className="mx-auto w-full max-w-6xl px-5 py-8 md:px-8 md:py-10">
+                  {children}
+                </div>
+              </main>
+            </div>
           </div>
           <ToastViewport />
         </AppProvider>

@@ -8,7 +8,7 @@ export function ToastViewport() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2">
       {busy && (
-        <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-ink-900)] px-4 py-3 text-sm text-[#f8f3e8] shadow-lg">
+        <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-ink-900 px-4 py-3 text-sm text-feature shadow-lg">
           <span className="pulse dot bg-[var(--color-warning)]" />
           <span>{busy}…</span>
         </div>

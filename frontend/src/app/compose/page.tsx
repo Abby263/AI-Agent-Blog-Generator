@@ -254,9 +254,9 @@ function Stepper({
               <span
                 className={`grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[11px] ${
                   state === "active"
-                    ? "bg-ink-900 text-[#fffaf0]"
+                    ? "bg-ink-900 text-feature"
                     : state === "done"
-                      ? "bg-success text-[#f5fbf7]"
+                      ? "bg-success text-on-accent"
                       : "bg-canvas-2 text-ink-500"
                 }`}
               >
@@ -320,7 +320,7 @@ function FormatStep({
               <span
                 className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
                   active
-                    ? "bg-accent text-[#fffaf0]"
+                    ? "bg-accent text-feature"
                     : "bg-canvas-2 text-ink-700"
                 }`}
               >
@@ -673,37 +673,37 @@ function SummaryRail({
   return (
     <aside className="space-y-4 lg:sticky lg:top-6">
       <div className="surface-dark p-5">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#dcc99e]">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-feature-accent">
           Brief preview
         </p>
-        <p className="mt-2 font-display text-xl font-medium tracking-tight text-[#fffaf0]">
+        <p className="mt-2 font-display text-xl font-medium tracking-tight text-feature">
           {draft.topic || "Untitled manuscript"}
         </p>
-        <p className="mt-1 text-xs text-[#bfb59c]">
+        <p className="mt-1 text-xs text-feature-muted">
           {format.label} · {draft.audience}
         </p>
         <div className="hairline-top mt-4 grid grid-cols-3 gap-3 border-white/10 pt-4 text-center">
           <div>
-            <p className="font-display text-2xl font-medium text-[#fffaf0]">
+            <p className="font-display text-2xl font-medium text-feature">
               {draft.parts}
             </p>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#bfb59c]">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-feature-muted">
               parts
             </p>
           </div>
           <div>
-            <p className="font-display text-2xl font-medium text-[#fffaf0]">
+            <p className="font-display text-2xl font-medium text-feature">
               {Math.round((draft.minWords + draft.maxWords) / 2 / 100) / 10}k
             </p>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#bfb59c]">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-feature-muted">
               words/ea
             </p>
           </div>
           <div>
-            <p className="font-display text-2xl font-medium text-[#fffaf0] capitalize">
+            <p className="font-display text-2xl font-medium text-feature capitalize">
               {draft.runMode}
             </p>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#bfb59c]">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-feature-muted">
               mode
             </p>
           </div>

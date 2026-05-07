@@ -294,7 +294,7 @@ export function MetricTile({
       : "text-[var(--color-ink-500)]";
   const hintTone =
     tone === "dark"
-      ? "text-[#bfb59c]"
+      ? "text-feature-muted"
       : "text-[var(--color-ink-400)]";
   return (
     <div className={base}>

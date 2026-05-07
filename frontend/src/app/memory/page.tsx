@@ -127,14 +127,14 @@ export default function MemoryPage() {
         </div>
         {retrieval && (
           <div className="mt-5 surface-dark p-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#dcc99e]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-feature-accent">
               Retrieved skill IDs
             </p>
-            <p className="mt-1 font-mono text-xs text-[#fffaf0]">
+            <p className="mt-1 font-mono text-xs text-feature">
               {retrieval.retrieval.retrieved_skill_ids.join(", ") || "none"}
             </p>
             {retrieval.retrieval.retrieved_guidance.length > 0 && (
-              <ul className="mt-3 space-y-1.5 text-sm text-[#e8dcc4]">
+              <ul className="mt-3 space-y-1.5 text-sm text-feature-muted">
                 {retrieval.retrieval.retrieved_guidance.map((guidance) => (
                   <li key={guidance} className="flex items-start gap-2">
                     <CheckIcon className="mt-0.5 h-3.5 w-3.5 text-accent" />

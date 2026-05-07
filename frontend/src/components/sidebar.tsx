@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/lib/context";
 import { GITHUB_REPOSITORY_URL } from "@/lib/api";
+import { ThemeToggle } from "./theme-toggle";
 import {
   ComposeIcon,
   DashboardIcon,
@@ -114,14 +115,26 @@ export function Sidebar() {
             Atlas
           </span>
         </Link>
-        <button
-          type="button"
-          aria-label="Open navigation"
-          onClick={() => setOpen(true)}
-          className="btn btn-ghost btn-sm"
-        >
-          <MenuIcon className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <a
+            href={GITHUB_REPOSITORY_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View source on GitHub"
+            className="btn btn-ghost btn-sm"
+          >
+            <GithubIcon className="h-4 w-4" />
+          </a>
+          <button
+            type="button"
+            aria-label="Open navigation"
+            onClick={() => setOpen(true)}
+            className="btn btn-ghost btn-sm"
+          >
+            <MenuIcon className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Drawer for mobile */}
@@ -224,51 +237,54 @@ function SidebarFooter({
   apiHealth,
   apiOrigin,
 }: {
-  apiHealth: "unknown" | "ok" | "error";
+  apiHealth: "unknown" | "ok" | "error" | "unconfigured";
   apiOrigin: string;
 }) {
   const tone =
     apiHealth === "ok"
-      ? "text-[var(--color-success)]"
+      ? "text-success"
       : apiHealth === "error"
-        ? "text-[var(--color-danger)]"
-        : "text-[var(--color-ink-400)]";
+        ? "text-danger"
+        : apiHealth === "unconfigured"
+          ? "text-warning"
+          : "text-ink-400";
   const label =
     apiHealth === "ok"
       ? "API connected"
       : apiHealth === "error"
         ? "API unreachable"
-        : "Checking API";
+        : apiHealth === "unconfigured"
+          ? "Backend not set"
+          : "Checking API";
+  const hint =
+    apiHealth === "unconfigured"
+      ? "Open settings to point the UI at your FastAPI backend."
+      : null;
   return (
-    <div className="border-t border-[var(--color-border)] px-4 py-4">
+    <div className="border-t border-border px-4 py-4">
       <Link
         href="/settings"
-        className="group block rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition hover:border-[var(--color-border-strong)]"
+        className="group block rounded-lg border border-border bg-surface p-3 transition hover:border-border-strong"
       >
         <div className="flex items-center justify-between text-xs font-medium">
           <span className={tone}>
             <span className="dot mr-1.5 inline-block" /> {label}
           </span>
         </div>
-        <p className="mt-1 truncate font-mono text-[11px] text-[var(--color-ink-500)]">
+        <p className="mt-1 truncate font-mono text-[11px] text-ink-500">
           {apiOrigin}
         </p>
+        {hint && (
+          <p className="mt-1.5 text-[11px] leading-snug text-ink-500">{hint}</p>
+        )}
       </Link>
-      <a
-        href={GITHUB_REPOSITORY_URL}
-        rel="noreferrer"
-        target="_blank"
-        className="mt-3 flex items-center gap-2 text-xs text-[var(--color-ink-500)] transition hover:text-[var(--color-ink-900)]"
-      >
-        <GithubIcon className="h-4 w-4" /> View source on GitHub
-      </a>
     </div>
   );
 }
 
 function Brandmark() {
   return (
-    <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-ink-900)] text-[#fffaf0] shadow-sm">
+    <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-ink-900)] text-on-primary shadow-sm">
       <svg
         viewBox="0 0 24 24"
         className="h-4 w-4"
