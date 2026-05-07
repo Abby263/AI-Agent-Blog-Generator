@@ -25,6 +25,9 @@ type Toast = {
   message: string;
 };
 
+export type ThemePreference = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
+
 type AppContextValue = {
   apiBase: string;
   setApiBase: (value: string) => void;
@@ -39,23 +42,37 @@ type AppContextValue = {
   dismissToast: (id: string) => void;
   busy: string | null;
   runWithBusy: <T>(label: string, action: () => Promise<T>) => Promise<T | null>;
-  apiHealth: "unknown" | "ok" | "error";
+  apiHealth: "unknown" | "ok" | "error" | "unconfigured";
   refreshHealth: () => Promise<void>;
+  themePreference: ThemePreference;
+  resolvedTheme: ResolvedTheme;
+  setThemePreference: (value: ThemePreference) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 const STORAGE_KEY_API = "blog-series-api-base";
 const STORAGE_KEY_DRAFT = "blog-series-draft";
+const STORAGE_KEY_THEME = "blog-series-theme";
+
+function readSystemTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [apiBase, setApiBaseState] = useState<string>(DEFAULT_API_BASE);
   const [draft, setDraftState] = useState<LaunchSettings>(defaultLaunchSettings);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [apiHealth, setApiHealth] = useState<"unknown" | "ok" | "error">(
-    "unknown",
-  );
+  const [apiHealth, setApiHealth] = useState<
+    "unknown" | "ok" | "error" | "unconfigured"
+  >("unknown");
+  const [themePreference, setThemePreferenceState] =
+    useState<ThemePreference>("system");
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light");
   const hydrated = useRef(false);
 
   useEffect(() => {
@@ -71,8 +88,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
+    const storedTheme = window.localStorage.getItem(
+      STORAGE_KEY_THEME,
+    ) as ThemePreference | null;
+    if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+      setThemePreferenceState(storedTheme);
+    }
+    setSystemTheme(readSystemTheme());
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) =>
+      setSystemTheme(event.matches ? "dark" : "light");
+    media.addEventListener("change", onChange);
     hydrated.current = true;
+    return () => media.removeEventListener("change", onChange);
   }, []);
+
+  const resolvedTheme: ResolvedTheme =
+    themePreference === "system" ? systemTheme : themePreference;
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    window.localStorage.setItem(STORAGE_KEY_THEME, themePreference);
+  }, [themePreference]);
+
+  const setThemePreference = useCallback(
+    (value: ThemePreference) => setThemePreferenceState(value),
+    [],
+  );
 
   useEffect(() => {
     if (!hydrated.current) return;
@@ -135,6 +183,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshHealth = useCallback(async () => {
+    const looksLikeLocalDefault =
+      typeof window !== "undefined" &&
+      apiBase.includes("localhost") &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1";
+    if (looksLikeLocalDefault) {
+      setApiHealth("unconfigured");
+      return;
+    }
     try {
       await apiFetch(apiBase, "/api/health");
       setApiHealth("ok");
@@ -167,6 +224,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       runWithBusy,
       apiHealth,
       refreshHealth,
+      themePreference,
+      resolvedTheme,
+      setThemePreference,
     }),
     [
       apiBase,
@@ -182,6 +242,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       runWithBusy,
       apiHealth,
       refreshHealth,
+      themePreference,
+      resolvedTheme,
+      setThemePreference,
     ],
   );
 

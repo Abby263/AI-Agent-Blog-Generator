@@ -27,6 +27,14 @@
   --color-danger: #ad3327;
   --color-danger-soft: #f6e2df;
 
+  --color-feature-bg: #1a1614;
+  --color-feature-fg: #f8f3e8;
+  --color-feature-fg-muted: #bfb59c;
+  --color-feature-fg-accent: #dcc99e;
+
+  --color-on-primary: #fffaf0;
+  --color-on-accent: #fffaf0;
+
   --font-display: "Fraunces", "Source Serif 4", "Iowan Old Style", "Charter", Georgia, serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
@@ -34,6 +42,47 @@
   --shadow-card: 0 1px 2px rgba(26, 22, 20, 0.04), 0 1px 1px rgba(26, 22, 20, 0.03);
   --shadow-elevated: 0 12px 32px -16px rgba(26, 22, 20, 0.18), 0 4px 12px -6px rgba(26, 22, 20, 0.08);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+html[data-theme="dark"] {
+  --color-canvas: #14110f;
+  --color-canvas-2: #1c1815;
+  --color-surface: #1f1b18;
+  --color-surface-2: #27221e;
+  --color-border: #2f2924;
+  --color-border-strong: #423a32;
+  --color-ink-900: #f5efe2;
+  --color-ink-800: #ece4d4;
+  --color-ink-700: #d4cab7;
+  --color-ink-600: #b8ad97;
+  --color-ink-500: #968b78;
+  --color-ink-400: #74695a;
+  --color-ink-300: #564d41;
+  --color-ink-200: #3a322b;
+  --color-accent: #d56b3f;
+  --color-accent-deep: #f08355;
+  --color-accent-soft: #3d2417;
+  --color-success: #6cb393;
+  --color-success-soft: #1b2a23;
+  --color-info: #6fbac7;
+  --color-info-soft: #1b2a2e;
+  --color-warning: #d6a566;
+  --color-warning-soft: #2c2316;
+  --color-danger: #e07569;
+  --color-danger-soft: #321c1a;
+
+  --color-feature-bg: #221d19;
+  --color-feature-fg: #f5efe2;
+  --color-feature-fg-muted: #968b78;
+  --color-feature-fg-accent: #d6a566;
+
+  --color-on-primary: #14110f;
+  --color-on-accent: #fffaf0;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.25);
+  --shadow-elevated: 0 18px 38px -18px rgba(0, 0, 0, 0.6),
+    0 6px 14px -8px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 * {
@@ -44,6 +93,12 @@ html,
 body {
   background: var(--color-canvas);
   color: var(--color-ink-900);
+  color-scheme: light;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  color-scheme: dark;
 }
 
 body {
@@ -163,7 +218,7 @@ textarea.input {
 
 .btn-primary {
   background: var(--color-ink-900);
-  color: #fffaf0;
+  color: var(--color-on-primary);
   border-color: var(--color-ink-900);
   box-shadow: var(--shadow-card);
 }
@@ -175,7 +230,7 @@ textarea.input {
 
 .btn-accent {
   background: var(--color-accent);
-  color: #fffaf0;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
   box-shadow: var(--shadow-card);
 }
@@ -230,10 +285,23 @@ textarea.input {
 }
 
 .surface-dark {
-  background: var(--color-ink-900);
-  color: #f8f3e8;
+  background: var(--color-feature-bg);
+  color: var(--color-feature-fg);
   border-radius: 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-feature-fg) 6%, transparent);
   box-shadow: var(--shadow-elevated);
+}
+
+.text-feature {
+  color: var(--color-feature-fg);
+}
+
+.text-feature-muted {
+  color: var(--color-feature-fg-muted);
+}
+
+.text-feature-accent {
+  color: var(--color-feature-fg-accent);
 }
 
 .eyebrow {
@@ -369,7 +437,7 @@ textarea.input {
   height: 1.85rem;
   border-radius: 999px;
   background: var(--color-ink-900);
-  color: #fffaf0;
+  color: var(--color-on-primary);
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
@@ -428,11 +496,11 @@ textarea.input {
 .workflow-cell-active {
   background: var(--color-ink-900);
   border-color: var(--color-ink-900);
-  color: #f8f3e8;
+  color: var(--color-on-primary);
 }
 
 .workflow-cell-active strong {
-  color: #fffaf0;
+  color: var(--color-on-primary);
 }
 
 .workflow-cell-queued {

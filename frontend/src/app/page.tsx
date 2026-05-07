@@ -98,13 +98,13 @@ export default function HomePage() {
           </div>
         </div>
         <div className="surface-dark p-6 md:p-7">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#dcc99e]">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-feature-accent">
             What you get
           </p>
-          <h2 className="mt-2 font-display text-2xl font-medium tracking-tight text-[#fffaf0]">
+          <h2 className="mt-2 font-display text-2xl font-medium tracking-tight text-feature">
             A grounded, reviewable manuscript—not a single prompt response.
           </h2>
-          <ul className="mt-5 space-y-3 text-sm text-[#e8dcc4]">
+          <ul className="mt-5 space-y-3 text-sm text-feature-muted">
             {[
               "Series outline with chapter architecture",
               "Per-chapter drafts in clean Markdown",
@@ -114,7 +114,7 @@ export default function HomePage() {
               "Approval record with reviewer comments",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5">
-                <span className="mt-0.5 grid h-4 w-4 flex-shrink-0 place-items-center rounded-full bg-[var(--color-accent)] text-[#fffaf0]">
+                <span className="mt-0.5 grid h-4 w-4 flex-shrink-0 place-items-center rounded-full bg-[var(--color-accent)] text-feature">
                   <CheckIcon className="h-3 w-3" />
                 </span>
                 {item}

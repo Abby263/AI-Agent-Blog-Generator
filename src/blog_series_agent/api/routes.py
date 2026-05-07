@@ -33,6 +33,12 @@ from .dependencies import get_application_services, get_background_executor, get
 router = APIRouter()
 
 
+@router.get("/health")
+def health() -> dict:
+    """Lightweight liveness probe used by the UI and orchestrators."""
+    return {"status": "ok"}
+
+
 def _to_run_config(request: SeriesRunRequest | OutlineRunRequest | BlogRunRequest) -> SeriesRunConfig:
     payload = request.model_dump()
     if payload.get("model") is None:

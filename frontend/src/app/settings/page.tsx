@@ -11,6 +11,7 @@ import {
   PageHeader,
 } from "@/components/ui";
 import { CheckIcon, RefreshIcon, ServerIcon } from "@/components/icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useApp } from "@/lib/context";
 import { DEFAULT_API_BASE } from "@/lib/api";
 
@@ -92,6 +93,15 @@ export default function SettingsPage() {
             mounting style.
           </HelpText>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          eyebrow="Appearance"
+          title="Theme"
+          description="Switch between light, dark, or follow your system preference."
+        />
+        <ThemeToggle compact={false} />
       </Card>
 
       <Card>
